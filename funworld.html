@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>豆豆冲冲冲 · Bean Dash · 卡通 3D 闯关跑酷</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='17' r='11' fill='%23ff8fb0'/%3E%3Ccircle cx='12' cy='14' r='3' fill='%23fff'/%3E%3Ccircle cx='20' cy='14' r='3' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Oxanium:wght@600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+#c{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+/* 顶部标题 */
+#title{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:3;text-align:center;pointer-events:none;user-select:none}
+#title .t{font-weight:800;font-size:26px;color:#fff;text-shadow:0 3px 0 #f57aa0,0 6px 14px rgba(0,0,0,.18);letter-spacing:1px}
+#title .s{font-family:Oxanium,monospace;font-size:11px;letter-spacing:4px;color:#fff;opacity:.9;margin-top:2px}
+/* 分数胶囊 */
+#score{position:fixed;top:18px;right:18px;z-index:3;background:#fff;border:3px solid #ffd34d;border-radius:30px;padding:8px 18px 8px 14px;
+  display:flex;align-items:center;gap:8px;font-weight:800;color:#e98a00;font-size:20px;box-shadow:0 6px 0 #f0b400,0 10px 20px rgba(0,0,0,.12)}
+#score .star{font-size:20px}
+/* 计时器 */
+#timer{position:fixed;top:18px;left:18px;z-index:3;background:#fff;border:3px solid #8ad0ff;border-radius:30px;padding:8px 16px;
+  font-weight:800;color:#1d8fd6;font-size:18px;box-shadow:0 6px 0 #57b3ee,0 10px 20px rgba(0,0,0,.12);font-variant-numeric:tabular-nums}
+/* 胜利结算 */
+#win{position:fixed;inset:0;z-index:8;display:none;place-items:center;background:rgba(120,200,255,.35);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#win.show{display:grid}
+#win .card{background:#fff;border-radius:28px;padding:30px 42px;text-align:center;border:4px solid #ffd34d;box-shadow:0 18px 50px rgba(0,0,0,.25);animation:pop .4s cubic-bezier(.2,1.5,.5,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+#win h1{font-size:28px;color:#ff6f91}
+#win .time{font-size:46px;font-weight:800;color:#e98a00;font-variant-numeric:tabular-nums;margin:4px 0}
+#win .best{font-size:15px;color:#6b5b7a;margin-bottom:18px;font-weight:700}
+#win button{font-family:inherit;font-weight:800;font-size:20px;color:#fff;background:#ff8fb0;border:none;border-radius:24px;padding:12px 34px;cursor:pointer;box-shadow:0 6px 0 #e26d92,0 10px 18px rgba(0,0,0,.18)}
+#win button:active{transform:translateY(3px);box-shadow:0 3px 0 #e26d92}
+#win .stars{font-size:42px;letter-spacing:5px;color:#ffd34d;text-shadow:0 2px 0 #e0a000;margin:2px 0}
+#win .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#mute{position:fixed;left:18px;top:64px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;
+  cursor:pointer;font-size:17px;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
+#mute:active{transform:translateY(2px);box-shadow:0 2px 0 #57b3ee}
+#win button.ghost{background:#fff;color:#ff6f91;border:3px solid #ffd0dd;box-shadow:0 5px 0 #ffd0dd;font-size:17px;padding:12px 22px}
+#win button.ghost:active{transform:translateY(2px);box-shadow:0 3px 0 #ffd0dd}
+/* 标题页 */
+#start{position:fixed;inset:0;z-index:8;display:none;place-items:center;
+  background:linear-gradient(160deg,rgba(150,215,255,.32),rgba(225,248,255,.5));-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+#start.show{display:grid}
+#start .panel{text-align:center;animation:pop .5s cubic-bezier(.2,1.5,.5,1);padding:20px}
+#start .logo{font-size:62px;font-weight:800;color:#fff;letter-spacing:2px;line-height:1.05;
+  text-shadow:0 4px 0 #ff8fb0,0 8px 0 #f06a92,0 16px 26px rgba(0,0,0,.18)}
+#start .sub{font-family:Oxanium,monospace;font-size:13px;letter-spacing:3px;color:#5a7a8f;margin:8px 0 26px}
+#start #play{font-family:inherit;font-weight:800;font-size:25px;color:#fff;background:#ff8fb0;border:none;border-radius:30px;
+  padding:15px 48px;cursor:pointer;box-shadow:0 8px 0 #e26d92,0 14px 24px rgba(0,0,0,.2)}
+#start #play:active{transform:translateY(4px);box-shadow:0 4px 0 #e26d92}
+#start .stats{margin-top:20px;font-weight:700;font-size:15px;color:#56708a}
+#start .stats b{color:#e98a00}
+#start .ctl{margin-top:14px;font-size:13px;color:#7c93a6}
+#start .ctl b{color:#ff6f91}
+#start .skins{display:flex;gap:11px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+#start .swatch{width:42px;height:42px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.18);
+  cursor:pointer;position:relative;display:grid;place-items:center;transition:transform .12s}
+#start .swatch:hover{transform:translateY(-3px)}
+#start .swatch.sel{outline:3px solid #ffd34d;outline-offset:2px}
+#start .swatch.lock{cursor:not-allowed;filter:saturate(.15) brightness(1.05)}
+#start .swatch .lk{font-size:10px;font-weight:800;color:#6b7c8a;line-height:1}
+/* HUD 仅游戏进行中显示 */
+#title,#score,#timer,#hint{opacity:0;transition:opacity .35s}
+body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{opacity:1}
+/* 连击 HUD + 浮动反馈 */
+#combo{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:3;font-weight:800;font-size:26px;color:#ff4f86;
+  text-shadow:0 2px 0 #fff,0 4px 10px rgba(0,0,0,.18);opacity:0;pointer-events:none;font-variant-numeric:tabular-nums}
+#combo.on{opacity:1;animation:cpulse .26s cubic-bezier(.2,1.6,.5,1)}
+@keyframes cpulse{from{transform:translateX(-50%) scale(1.5)}to{transform:translateX(-50%) scale(1)}}
+.cpop{position:fixed;z-index:5;font-weight:800;font-size:19px;color:#ff9500;text-shadow:0 2px 5px rgba(0,0,0,.28);
+  pointer-events:none;transform:translate(-50%,-50%);animation:cfloat .9s ease-out forwards}
+@keyframes cfloat{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-165%) scale(1.12)}}
+#win .bonus{font-size:13px;color:#8a9aad;font-weight:700;margin:-2px 0 10px}
+/* 操作提示 */
+#hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:3;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;pointer-events:none}
+#hint span{background:rgba(255,255,255,.85);border-radius:20px;padding:6px 14px;font-weight:600;font-size:13px;color:#6b5b7a;box-shadow:0 3px 8px rgba(0,0,0,.1)}
+#hint b{color:#ff6f91}
+/* 移动端摇杆/按钮 */
+#mob{position:fixed;inset:0;z-index:4;pointer-events:none;display:none}
+#mob.on{display:block}
+#joy{position:absolute;left:24px;bottom:26px;width:130px;height:130px;border-radius:50%;pointer-events:auto;touch-action:none;
+  background:radial-gradient(circle,rgba(255,255,255,.5),rgba(255,255,255,.25));border:3px solid rgba(255,255,255,.7);box-shadow:0 6px 16px rgba(0,0,0,.15)}
+#jt{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.2)}
+#jbtn{position:absolute;right:30px;bottom:42px;width:84px;height:84px;border-radius:50%;pointer-events:auto;touch-action:none;
+  background:#ff8fb0;border:4px solid #fff;box-shadow:0 6px 0 #e26d92,0 10px 18px rgba(0,0,0,.18);display:grid;place-items:center;
+  font-weight:800;font-size:18px;color:#fff;user-select:none}
+#jbtn:active{transform:translateY(3px);box-shadow:0 3px 0 #e26d92}
+/* 载入 */
+#load{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:#bfe6ff;color:#fff;font-weight:800;font-size:22px;text-shadow:0 2px 6px rgba(0,0,0,.15);transition:opacity .5s}
+#load.gone{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title"><div class="t">豆豆冲冲冲</div><div class="s">BEAN DASH · 卡通 3D 闯关跑酷</div></div>
+<div id="score"><span class="star">⭐</span><span id="sc">0/10</span></div>
+<div id="timer">⏱ <span id="tm">0.0</span>s</div>
+<div id="combo"></div>
+<button id="mute" title="音效开关">🔊</button>
+<div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
+<div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
+<div id="load">豆豆乐园 载入中…</div>
+<div id="win"><div class="card"><h1>🎉 通关！</h1><div class="stars" id="ws">★★★</div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="again">再玩一次 ↻</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
+<div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 1000);
+
+// ---- 渐变天空 ----
+{
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(500,32,16), new THREE.ShaderMaterial({
+    side:THREE.BackSide, depthWrite:false,
+    uniforms:{ top:{value:new THREE.Color('#7cc7ff')}, bot:{value:new THREE.Color('#eaf7ff')} },
+    vertexShader:`varying vec3 vp; void main(){ vp=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`varying vec3 vp; uniform vec3 top; uniform vec3 bot; void main(){ float h=clamp(normalize(vp).y*0.5+0.5,0.0,1.0); gl_FragColor=vec4(mix(bot,top,smoothstep(0.0,0.9,h)),1.0); }`
+  }));
+  scene.add(sky);
+}
+scene.fog = new THREE.Fog(0xd9f0ff, 70, 180);
+
+// ---- 灯光（明亮柔和）----
+scene.add(new THREE.HemisphereLight(0xffffff, 0xc8e6d0, 0.95));
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.55);
+sun.position.set(24,40,18); sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0004;
+const sc=sun.shadow.camera; sc.near=1; sc.far=160; sc.left=-60; sc.right=60; sc.top=60; sc.bottom=-60;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xbfe0ff, 0.4); fill.position.set(-20,16,-22); scene.add(fill);
+
+// ---- 圆形岛屿地面 ----
+const ISLAND_R = 30;
+const island = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R-2.5, 4, 64),
+  new THREE.MeshStandardMaterial({ color:0x9fe6b4, roughness:0.95 }));
+island.position.y = -2; island.receiveShadow = true; scene.add(island);
+// 草色顶面
+const grass = new THREE.Mesh(new THREE.CircleGeometry(ISLAND_R, 64),
+  new THREE.MeshStandardMaterial({ color:0xb6efbf, roughness:1 }));
+grass.rotation.x = -Math.PI/2; grass.position.y = 0.001; grass.receiveShadow = true; scene.add(grass);
+
+// ---- 碰撞体：solids（box=平台 / cyl=圆形障碍）。墙体挡水平、顶面可站立 ----
+const solids = []; const PR = 0.42, STEP = 0.35;   // 角色半径 + 可忽略的小台阶
+function addPlatform(x,z,w,d,h,color){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({ color, roughness:0.7 }));
+  m.position.set(x, h/2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+  solids.push({ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h });
+  return m;
+}
+addPlatform(-8, -6, 5,5,1.4, 0xffd36e);
+addPlatform( 9, -3, 6,4,2.4, 0xff9bb3);
+addPlatform( 4, 9, 4,4,2.8, 0x9bd0ff);
+addPlatform(-10, 8, 5,5,1.8, 0xc7a3ff);
+addPlatform( 0, 0, 3.4,3.4,0.8, 0xffe08a);
+
+// ---- 移动平台（会左右滑动，可站上去乘坐）----
+const movers = [];
+function addMover(x,z,w,d,h,color,axis,range,spd){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({ color, roughness:0.55, emissive:color, emissiveIntensity:0.06 }));
+  m.position.set(x,h/2,z); m.castShadow=m.receiveShadow=true; scene.add(m);
+  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h };
+  solids.push(s);
+  movers.push({ mesh:m, s, bx:x, bz:z, hw:w/2, hd:d/2, axis, range, spd, ph:movers.length*1.7 });
+  return m;
+}
+addMover( 0,-16, 4.6,4.0, 2.0, 0x8ad6c0, 'x', 7, 0.5);
+addMover(17,  2, 4.0,4.4, 2.6, 0xffb3d1, 'z', 5, 0.5);
+
+// ---- 旋转横扫机关（撞到会被弹飞，需跳过 / 绕开 / 卡时机穿过）----
+const spinners = [];
+function addSpinner(x,z,len,spd,barH){
+  const grp=new THREE.Group(); grp.position.set(x,0,z); scene.add(grp);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.42,barH+0.2,16), new THREE.MeshStandardMaterial({color:0xfff1d6,roughness:0.85}));
+  pole.position.y=(barH+0.2)/2; pole.castShadow=true; grp.add(pole);
+  const arm=new THREE.Group(); arm.position.y=barH; grp.add(arm);
+  const bar=new THREE.Mesh(new THREE.BoxGeometry(len,0.5,0.5), new THREE.MeshStandardMaterial({color:0xff6f91,roughness:0.5,emissive:0xff2e63,emissiveIntensity:0.14})); bar.castShadow=true; arm.add(bar);
+  for(const e of [-1,1]){ const ball=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,12), new THREE.MeshStandardMaterial({color:0xffd34d,roughness:0.4,emissive:0xffb000,emissiveIntensity:0.22})); ball.position.x=e*len/2; ball.castShadow=true; arm.add(ball); }
+  spinners.push({ x, z, len, spd, barH, ang:0, cd:0, arm });
+}
+addSpinner(0,-9, 8.5, 1.4, 1.1);
+
+// ---- 装饰：糖果色障碍 + 云 ----
+function blob(x,y,z,r,color,rough){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,2),
+  new THREE.MeshStandardMaterial({ color, roughness:rough==null?0.6:rough, flatShading:false })); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; scene.add(m);
+  solids.push({ box:false, x, z, r:r*0.82, top:y+r*0.55 }); return m; }
+blob(-16,1.6,-2,1.7,0xff8a5c); blob(14,1.4,10,1.5,0x8ad6c0); blob(-3,1.2,-15,1.3,0xffc14d);
+blob(17,2.0,-12,2.0,0xb39bff); blob(-18,1.3,12,1.4,0x6fc6ff);
+// 大蘑菇柱
+for(const [x,z,c] of [[-20,-10,0xff9bb3],[20,4,0xffd36e],[6,-18,0x9bd0ff]]){
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.9,3,16), new THREE.MeshStandardMaterial({color:0xfff1d6,roughness:0.9}));
+  stem.position.set(x,1.5,z); stem.castShadow=true; scene.add(stem);
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(1.8,20,16,0,Math.PI*2,0,Math.PI*0.55), new THREE.MeshStandardMaterial({color:c,roughness:0.6}));
+  cap.position.set(x,3.0,z); cap.scale.y=0.8; cap.castShadow=true; scene.add(cap);
+  solids.push({ box:false, x, z, r:1.5, top:3.7 });
+}
+// 软云
+function cloud(x,y,z,s){ const g=new THREE.Group(); const mat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,emissive:0xffffff,emissiveIntensity:0.05});
+  for(const o of [[0,0,0,1],[1,-.1,.2,.75],[-1,-.1,-.2,.7],[.4,.35,0,.6]]){ const b=new THREE.Mesh(new THREE.SphereGeometry(o[3]*s,16,12),mat); b.position.set(o[0]*s,o[1]*s,o[2]*s); g.add(b);}
+  g.position.set(x,y,z); scene.add(g); return g; }
+const clouds=[cloud(-22,18,-20,3),cloud(20,22,15,3.6),cloud(0,26,-30,4),cloud(30,16,-6,2.6)];
+
+// ---- 弹簧垫（踩上去弹高）----
+const pads = [];
+function addPad(x,z){ const g=new THREE.Group();
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.7,0.5,24), new THREE.MeshStandardMaterial({color:0xff5a8a,roughness:0.5})); base.position.y=0.25; base.castShadow=base.receiveShadow=true; g.add(base);
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,0.35,24), new THREE.MeshStandardMaterial({color:0xffd34d,emissive:0xffb000,emissiveIntensity:0.35,roughness:0.4})); top.position.y=0.65; top.castShadow=true; g.add(top);
+  g.position.set(x,0,z); scene.add(g); pads.push({x,z,g,sq:0}); }
+addPad(-3,12); addPad(13,-9); addPad(-14,0);
+
+// ---- 星星收集 ----
+const stars = []; let score=0; const scEl=document.getElementById('sc');
+const starGeo = new THREE.IcosahedronGeometry(0.5,0);
+function addStar(x,y,z){ const m=new THREE.Mesh(starGeo, new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:0.6,roughness:0.3,metalness:0.2}));
+  m.position.set(x,y,z); m.castShadow=true; scene.add(m); stars.push({m,base:y,bx:x,bz:z,spin:Math.random()*6,alive:true}); }
+for(const [x,y,z] of [[-8,2.4,-6],[9,3.4,-3],[4,3.7,9],[-10,3.0,8],[0,1.6,0],[-3,2.6,12],[13,1.8,-9],[-14,2.2,0],[18,1.0,16],[-18,1.0,-14],[0,3.3,-16],[17,3.9,2]]) addStar(x,y,z);
+
+// ---- 完整游戏流程：标题 → 游戏 → 三星结算 → 再玩 / 返回 ----
+const total = stars.length; scEl.textContent = '0/'+total;
+let timeMs=0, running=false, state='menu';                 // state: menu | play | results
+let combo=0, lastCollectMs=-9999, bonusMs=0;               // 连击 → 抵扣时间奖励
+const COMBO_WINDOW=2600, COMBO_STEP=200, COMBO_MAX=6;      // 连击窗口ms / 每级奖励ms / 倍率封顶
+const tmEl=document.getElementById('tm'), winEl=document.getElementById('win'),
+      wtEl=document.getElementById('wt'), wbEl=document.getElementById('wb'), wsEl=document.getElementById('ws'),
+      wbonusEl=document.getElementById('wbonus'), comboEl=document.getElementById('combo'),
+      startEl=document.getElementById('start'), startStatsEl=document.getElementById('startStats');
+const STAR_T=[55,85];                                       // ≤55s→3★，≤85s→2★，否则1★
+let best = parseFloat(localStorage.getItem('bean_best')) || 0;
+const starStr = n => '★'.repeat(n)+'☆'.repeat(3-n);
+function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best'))||0, st=+(localStorage.getItem('bean_stars')||0), pl=+(localStorage.getItem('bean_plays')||0), tot=+(localStorage.getItem('bean_totalStars')||0);
+  const next=SKINS.find(s=>s.need>tot);
+  const l1 = b ? `最佳 <b>${b.toFixed(1)}s</b> · ${starStr(st)} · 已玩 ${pl} 局` : '首次游玩 · 收齐 '+total+' ⭐ 冲最快时间！';
+  const l2 = `累计 ⭐${tot}` + (next ? ` · 距「${next.name}」还需 <b>${next.need-tot}</b>⭐` : ' · 皮肤已集齐 🎉');
+  startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
+function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; scene.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
+  timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
+  player.position.set(0,3,6); vel.set(0,0,0); vy=0; }
+function startGame(){ A.init(); resetRun(); state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
+function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
+function showWin(){ running=false; state='results';
+  const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
+  wbonusEl.textContent = bonus>0 ? `原始 ${raw.toFixed(1)}s − 连击奖励 ${bonus.toFixed(1)}s` : `用时 ${raw.toFixed(1)}s`;
+  const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1; wsEl.textContent=starStr(rating);
+  let rec=false; if(!best || secs<best){ best=secs; rec=true; try{ localStorage.setItem('bean_best',String(best)); }catch(e){} }
+  const ps=+(localStorage.getItem('bean_stars')||0); if(rating>ps){ try{ localStorage.setItem('bean_stars',String(rating)); }catch(e){} }
+  try{ localStorage.setItem('bean_plays', String((+(localStorage.getItem('bean_plays')||0))+1)); }catch(e){}
+  const prevTot=+(localStorage.getItem('bean_totalStars')||0), tot=prevTot+total; try{ localStorage.setItem('bean_totalStars',String(tot)); }catch(e){}
+  const newSkins=SKINS.filter(s=> s.need>prevTot && s.need<=tot).map(s=>s.name);
+  wbEl.innerHTML = (rec?'🏆 新纪录！':'最佳 '+best.toFixed(1)+'s') + (newSkins.length?' · 🎉解锁皮肤「'+newSkins.join('、')+'」':'');
+  winEl.classList.add('show'); A.win(); }
+const restart = startGame;                                  // 兼容旧调试钩子
+document.getElementById('play').addEventListener('click', startGame);
+document.getElementById('again').addEventListener('click', startGame);
+document.getElementById('tomenu').addEventListener('click', toMenu);
+// 分享成绩（虚拟传播：navigator.share / 复制到剪贴板）
+const shareBtn=document.getElementById('share');
+function shareText(){ return `我在《豆豆冲冲冲》用 ${wtEl.textContent}s ${wsEl.textContent} 通关！⚡ 来挑战你的最快时间 → ${location.href.split('#')[0]}`; }
+function shareResult(){ A.init(); const text=shareText(), url=location.href.split('#')[0];
+  if(navigator.share){ navigator.share({title:'豆豆冲冲冲 · Bean Dash', text, url}).catch(()=>{}); return; }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>{ shareBtn.textContent='已复制 ✓'; setTimeout(()=>{shareBtn.textContent='分享 📤';},1600); }).catch(()=>{ shareBtn.textContent='手动复制'; }); }
+  else { shareBtn.textContent='不支持'; } }
+shareBtn.addEventListener('click', shareResult);
+// 标题 UI 在皮肤数据定义后再统一初始化（见皮肤区块末尾）
+
+// ============ 豆豆角色（程序化 + Q 弹动画）============
+const player = new THREE.Group(); scene.add(player);     // position.y = 脚底高度（0=地面）
+const bean = new THREE.Group(); player.add(bean);        // 形变/朝向在此（原点=脚底）
+const SKIN = 0xff8fb0;
+const bodyMat = new THREE.MeshStandardMaterial({ color:SKIN, roughness:0.55 });
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.46,0.6,8,18), bodyMat);
+body.position.y = 0.92; body.castShadow = true; bean.add(body);
+// 肚皮亮色
+const bellyMat = new THREE.MeshStandardMaterial({color:0xffd0dd,roughness:0.6});
+const belly = new THREE.Mesh(new THREE.SphereGeometry(0.34,18,14), bellyMat);
+belly.position.set(0,0.8,0.34); belly.scale.set(1,1.15,0.5); bean.add(belly);
+// 眼睛
+const eyeW = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.3});
+const eyeB = new THREE.MeshStandardMaterial({color:0x2a2230,roughness:0.2});
+for(const sx of [-1,1]){
+  const e=new THREE.Mesh(new THREE.SphereGeometry(0.17,18,14), eyeW); e.position.set(0.18*sx,1.12,0.36); e.scale.z=0.7; bean.add(e);
+  const p=new THREE.Mesh(new THREE.SphereGeometry(0.085,12,10), eyeB); p.position.set(0.2*sx,1.1,0.5); bean.add(p);
+  const br=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.05,0.05), eyeB); br.position.set(0.18*sx,1.33,0.42); br.rotation.z=-0.15*sx; bean.add(br);
+}
+// 腮红
+for(const sx of [-1,1]){ const c=new THREE.Mesh(new THREE.CircleGeometry(0.1,12), new THREE.MeshBasicMaterial({color:0xff6f91,transparent:true,opacity:0.5})); c.position.set(0.34*sx,0.98,0.34); c.lookAt(0.34*sx*3,0.98,3); bean.add(c); }
+// 手
+const armMat = new THREE.MeshStandardMaterial({color:0xff7aa3,roughness:0.55});
+const armL=new THREE.Mesh(new THREE.CapsuleGeometry(0.12,0.28,6,10),armMat); armL.position.set(-0.5,0.86,0); armL.castShadow=true; bean.add(armL);
+const armR=armL.clone(); armR.position.x=0.5; bean.add(armR);
+// 脚
+const legMat = new THREE.MeshStandardMaterial({color:0x6b4a8a,roughness:0.6});
+const legL=new THREE.Group(); const footL=new THREE.Mesh(new THREE.CapsuleGeometry(0.15,0.18,6,10),legMat); footL.position.y=0.16; footL.rotation.x=Math.PI/2; footL.position.z=0.04; legL.add(footL); legL.position.set(-0.22,0.32,0); bean.add(legL);
+const legR=legL.clone(); legR.position.x=0.22; bean.add(legR);
+
+// ============ 豆豆皮肤（按累计收集星数解锁，标题页可切换）============
+const SKINS=[
+  {name:'蜜桃粉', body:0xff8fb0, belly:0xffd0dd, arm:0xff7aa3, leg:0x6b4a8a, need:0},
+  {name:'薄荷',   body:0x6fd1ad, belly:0xcdf3e6, arm:0x4fbf97, leg:0x357a60, need:24},
+  {name:'天空蓝', body:0x79beff, belly:0xd2e9ff, arm:0x5aa4ee, leg:0x3a5f8a, need:60},
+  {name:'香芋',   body:0xb79bff, belly:0xe4d8ff, arm:0x9a79ee, leg:0x5a4a8a, need:120},
+  {name:'柠檬',   body:0xffe066, belly:0xfff3b0, arm:0xefc63f, leg:0x8a7330, need:200},
+  {name:'黄金豆', body:0xffd34d, belly:0xfff1c4, arm:0xf0b400, leg:0x8a6600, need:320, gold:true},
+];
+let skinIdx = Math.max(0, Math.min(SKINS.length-1, parseInt(localStorage.getItem('bean_skin')||'0')||0));
+function applySkin(i){ if(i<0||i>=SKINS.length)i=0; const s=SKINS[i]; skinIdx=i;
+  bodyMat.color.set(s.body); bellyMat.color.set(s.belly); armMat.color.set(s.arm); legMat.color.set(s.leg);
+  bodyMat.emissive.set(s.gold?0x6a4a00:0x000000); bodyMat.emissiveIntensity = s.gold?0.25:0; }
+function renderSkins(){ const row=document.getElementById('skinRow'); if(!row)return; const tot=+(localStorage.getItem('bean_totalStars')||0); row.innerHTML='';
+  SKINS.forEach((s,i)=>{ const unlocked=tot>=s.need; const d=document.createElement('div');
+    d.className='swatch'+(i===skinIdx?' sel':'')+(unlocked?'':' lock');
+    d.style.background = unlocked ? '#'+s.body.toString(16).padStart(6,'0') : '#c7d0d8'; d.title=s.name;
+    if(!unlocked) d.innerHTML='<span class="lk">🔒'+s.need+'</span>';
+    d.addEventListener('click',()=>{ A.init(); if(tot<s.need){ A.tone(200,0.09,'square',0.12,140); return; } applySkin(i); try{localStorage.setItem('bean_skin',String(i));}catch(e){} renderSkins(); A.collect(4); });
+    row.appendChild(d); }); }
+applySkin(skinIdx); refreshStartStats();
+
+// 落地小尘
+const fx=[];
+function landPuff(){ const N=14,pos=new Float32Array(N*3),vel=[];
+  for(let i=0;i<N;i++){ pos[i*3]=player.position.x; pos[i*3+1]=0.1; pos[i*3+2]=player.position.z; const a=Math.random()*6.28,s=1+Math.random()*2; vel.push(new THREE.Vector3(Math.cos(a)*s,0.4+Math.random(),Math.sin(a)*s)); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const p=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:0.22,transparent:true,opacity:0.8,depthWrite:false})); scene.add(p); fx.push({o:p,life:0.45,max:0.45,vel}); }
+function popStar(x,y,z){ const N=16,pos=new Float32Array(N*3),vel=[];
+  for(let i=0;i<N;i++){ pos[i*3]=x;pos[i*3+1]=y;pos[i*3+2]=z; const a=Math.random()*6.28,ph=Math.random()*3.14,s=2+Math.random()*3; vel.push(new THREE.Vector3(Math.cos(a)*Math.sin(ph)*s,Math.abs(Math.cos(ph))*s+1.5,Math.sin(a)*Math.sin(ph)*s)); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const p=new THREE.Points(g,new THREE.PointsMaterial({color:0xffe14d,size:0.24,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false})); scene.add(p); fx.push({o:p,life:0.6,max:0.6,vel}); }
+function popCombo(c, bonusMs, pos3){ if(c<2) return; const v=pos3.clone().project(camera); if(v.z>1) return;
+  const d=document.createElement('div'); d.className='cpop'; d.textContent='x'+c+'  −'+(bonusMs/1000).toFixed(1)+'s';
+  d.style.left=((v.x*0.5+0.5)*innerWidth)+'px'; d.style.top=((-v.y*0.5+0.5)*innerHeight)+'px';
+  document.body.appendChild(d); setTimeout(()=>d.remove(), 900); }
+function sprintDust(){ const N=5,pos=new Float32Array(N*3),vel=[];
+  for(let i=0;i<N;i++){ pos[i*3]=player.position.x; pos[i*3+1]=0.12; pos[i*3+2]=player.position.z; const a=Math.random()*6.28; vel.push(new THREE.Vector3(Math.cos(a)*0.9,0.3+Math.random()*0.6,Math.sin(a)*0.9)); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const p=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:0.16,transparent:true,opacity:0.55,depthWrite:false})); scene.add(p); fx.push({o:p,life:0.4,max:0.4,vel}); }
+
+// ============ 音效（Web Audio 程序化合成，无音频文件）============
+let actx=null, muted = localStorage.getItem('bean_muted')==='1';
+const A = {
+  init(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } } if(actx.state==='suspended') actx.resume(); },
+  tone(freq,dur,type,gain,slideTo){ if(!actx||muted) return; const t=actx.currentTime;
+    const o=actx.createOscillator(), g=actx.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain||0.16,t+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t+dur+0.03); },
+  jump(){ this.tone(420,0.16,'sine',0.15,780); },
+  land(){ this.tone(190,0.10,'triangle',0.13,110); },
+  bounce(){ this.tone(300,0.24,'sine',0.20,940); },
+  hit(){ this.tone(150,0.18,'sawtooth',0.18,70); this.tone(90,0.22,'square',0.10,60); },
+  collect(n){ const f=620*Math.pow(2,(Math.min(n,12)-1)/12); this.tone(f,0.13,'triangle',0.16,f*1.5); },
+  win(){ [523,659,784,1047,1319].forEach((n,i)=>setTimeout(()=>this.tone(n,0.2,'triangle',0.18,n*1.01), i*110)); },
+};
+addEventListener('pointerdown',()=>A.init()); addEventListener('keydown',()=>A.init());
+// 静音开关
+const muteBtn=document.getElementById('mute');
+function updateMute(){ muteBtn.textContent = muted?'🔇':'🔊'; }
+muteBtn.addEventListener('click',()=>{ muted=!muted; try{localStorage.setItem('bean_muted', muted?'1':'0');}catch(e){} updateMute(); if(!muted){ A.init(); A.collect(3); } });
+updateMute();
+
+// ============ 输入 ============
+const keys={};
+addEventListener('keydown',e=>{ keys[e.code]=true; if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault(); });
+addEventListener('keyup',e=>{ keys[e.code]=false; });
+let dragging=false,lx=0,ly=0,camYaw=0.4,camPitch=0.5,camDist=10;
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('mousedown',e=>{ if(e.button===2){dragging=true;lx=e.clientX;ly=e.clientY;} });
+addEventListener('mouseup',()=>dragging=false);
+addEventListener('mousemove',e=>{ if(!dragging)return; camYaw-=(e.clientX-lx)*0.005; camPitch=Math.min(1.15,Math.max(0.12,camPitch+(e.clientY-ly)*0.005)); lx=e.clientX; ly=e.clientY; });
+canvas.addEventListener('wheel',e=>{ camDist=Math.min(18,Math.max(5,camDist+e.deltaY*0.01)); e.preventDefault(); },{passive:false});
+// 触屏
+const touch={x:0,y:0};
+{ const joy=document.getElementById('joy'),jt=document.getElementById('jt'); let pid=null;
+  const at=e=>{ const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2; let dx=e.clientX-cx,dy=e.clientY-cy; const mx=r.width/2,d=Math.hypot(dx,dy)||1; if(d>mx){dx*=mx/d;dy*=mx/d;} jt.style.transform=`translate(${dx}px,${dy}px)`; touch.x=dx/mx; touch.y=dy/mx; };
+  joy.addEventListener('pointerdown',e=>{pid=e.pointerId;joy.setPointerCapture(e.pointerId);at(e);e.preventDefault();});
+  joy.addEventListener('pointermove',e=>{if(e.pointerId===pid)at(e);});
+  const up=e=>{if(e.pointerId===pid){pid=null;touch.x=touch.y=0;jt.style.transform='translate(0,0)';}}; joy.addEventListener('pointerup',up); joy.addEventListener('pointercancel',up);
+  document.getElementById('jbtn').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+  if(matchMedia('(pointer:coarse)').matches||'ontouchstart'in window) document.getElementById('mob').classList.add('on');
+}
+
+// ============ 控制器 / 物理 ============
+const vel=new THREE.Vector3(); let vy=0, grounded=true, facing=0, squash=0, squashV=0, walkPh=0;
+let clock=0, groundSolid=null, stun=0, dustClock=0;   // groundSolid=脚下踩着的实体（乘坐移动平台）；stun=被机关击飞硬直
+const RUN=7, SPRINT=11, ACC=14, G=26, JUMP=13, MAGNET_R=1.8;
+const _f=new THREE.Vector3(),_r=new THREE.Vector3(),_w=new THREE.Vector3(),_tgt=new THREE.Vector3(),_off=new THREE.Vector3(),_goal=new THREE.Vector3(),_mp=new THREE.Vector3();
+function jump(){ if(state==='play' && grounded){ vy=JUMP; grounded=false; squashV=6; A.jump(); } }
+addEventListener('keydown',e=>{ if(e.code==='Space')jump(); });
+
+function tick(dt){
+  if(running){ timeMs+=dt*1000; tmEl.textContent=(timeMs/1000).toFixed(1); }
+  if(combo>0 && state==='play' && timeMs-lastCollectMs>COMBO_WINDOW){ combo=0; comboEl.classList.remove('on'); }  // 连击断裂
+  // —— 移动平台：滑动并更新碰撞体；若正踩在上面则把豆豆一起带走 ——
+  clock+=dt;
+  for(const mv of movers){
+    const off=Math.sin(clock*mv.spd+mv.ph)*mv.range;
+    const nx=mv.bx+(mv.axis==='x'?off:0), nz=mv.bz+(mv.axis==='z'?off:0);
+    const dx=nx-mv.mesh.position.x, dz=nz-mv.mesh.position.z;
+    mv.mesh.position.x=nx; mv.mesh.position.z=nz;
+    mv.s.minX=nx-mv.hw; mv.s.maxX=nx+mv.hw; mv.s.minZ=nz-mv.hd; mv.s.maxZ=nz+mv.hd;
+    if(groundSolid===mv.s){ player.position.x+=dx; player.position.z+=dz; }
+  }
+  if(state==='menu') camYaw += dt*0.12;                 // 标题页：缓慢环绕展示场景
+  if(state==='play' && stun<=0){
+    _f.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); _r.set(-_f.z,0,_f.x); _w.set(0,0,0);
+    if(keys.KeyW||keys.ArrowUp)_w.add(_f); if(keys.KeyS||keys.ArrowDown)_w.sub(_f);
+    if(keys.KeyD||keys.ArrowRight)_w.add(_r); if(keys.KeyA||keys.ArrowLeft)_w.sub(_r);
+    if(touch.x||touch.y){ _w.add(_f.clone().multiplyScalar(-touch.y)).add(_r.clone().multiplyScalar(touch.x)); }
+    const moving=_w.lengthSq()>0.01;
+    const spd=(keys.ShiftLeft||keys.ShiftRight)?SPRINT:RUN;
+    if(moving)_w.normalize().multiplyScalar(spd);
+    vel.x+=(_w.x-vel.x)*Math.min(1,ACC*dt); vel.z+=(_w.z-vel.z)*Math.min(1,ACC*dt);
+  } else if(stun>0){ stun-=dt; }                        // 被击飞：保持击退惯性，不接管速度
+  else { vel.x-=vel.x*Math.min(1,10*dt); vel.z-=vel.z*Math.min(1,10*dt); }   // 菜单/结算：减速停下
+  // —— 水平移动 + 墙体碰撞：撞到实体侧面被挡住，不能穿过、也不会瞬移到顶上 ——
+  player.position.x+=vel.x*dt; player.position.z+=vel.z*dt;
+  const feet=player.position.y;
+  for(const s of solids){
+    if(s.top<=feet+STEP) continue;                 // 够矮可踩上/跨过，不当墙
+    if(s.box){
+      const cx=Math.max(s.minX,Math.min(player.position.x,s.maxX));
+      const cz=Math.max(s.minZ,Math.min(player.position.z,s.maxZ));
+      let dx=player.position.x-cx, dz=player.position.z-cz, d2=dx*dx+dz*dz;
+      if(d2<PR*PR){
+        if(d2>1e-6){ const d=Math.sqrt(d2),p=PR-d; player.position.x+=dx/d*p; player.position.z+=dz/d*p; }
+        else { const ex=Math.min(player.position.x-s.minX,s.maxX-player.position.x), ez=Math.min(player.position.z-s.minZ,s.maxZ-player.position.z);
+          if(ex<ez) player.position.x+=(player.position.x<(s.minX+s.maxX)/2?-1:1)*(ex+PR);
+          else      player.position.z+=(player.position.z<(s.minZ+s.maxZ)/2?-1:1)*(ez+PR); }
+      }
+    } else {
+      let dx=player.position.x-s.x, dz=player.position.z-s.z, d=Math.hypot(dx,dz), md=s.r+PR;
+      if(d<md){ if(d>1e-6){ const p=md-d; player.position.x+=dx/d*p; player.position.z+=dz/d*p; } else player.position.x+=md; }
+    }
+  }
+  // —— 重力 + 竖直碰撞：只在「之前就在顶面之上」时落到顶面，高度才真正生效 ——
+  if(keys.Space&&grounded)jump();
+  const prevFeet=player.position.y;
+  vy-=G*dt; player.position.y+=vy*dt;
+  let support=(Math.hypot(player.position.x,player.position.z)<ISLAND_R)?0:-999, supSolid=null;   // 岛面
+  for(const s of solids){
+    const over = s.box
+      ? (player.position.x>=s.minX-PR && player.position.x<=s.maxX+PR && player.position.z>=s.minZ-PR && player.position.z<=s.maxZ+PR)
+      : (Math.hypot(player.position.x-s.x,player.position.z-s.z) < s.r+PR);
+    if(over && prevFeet>=s.top-0.05 && s.top>support){ support=s.top; supSolid=s; }   // 必须先在顶面之上
+  }
+  if(player.position.y<=support+0.001 && vy<=0){
+    if(!grounded){ squashV=-Math.min(9,Math.abs(vy)*0.9); landPuff(); if(Math.abs(vy)>2) A.land(); }
+    player.position.y=support; vy=0; grounded=true; groundSolid=supSolid;
+  } else { grounded=false; groundSolid=null; }
+  if(player.position.y<-20){ player.position.set(0,2,0); vy=0; }   // 掉出去复位
+  // 弹簧
+  for(const pd of pads){ pd.sq=Math.max(0,pd.sq-dt*5); pd.g.scale.y=1-pd.sq*0.4;
+    if(state==='play' && grounded && Math.abs(player.position.x-pd.x)<1.5 && Math.abs(player.position.z-pd.z)<1.5){ vy=20; grounded=false; squashV=8; pd.sq=1; A.bounce(); } }
+  // 旋转横扫机关：转动 + 命中弹飞（跳得比横杆高 / 卡时机穿过可躲）
+  for(const spn of spinners){
+    spn.ang+=spn.spd*dt; spn.arm.rotation.y=spn.ang;
+    if(state!=='play' || spn.cd>0){ if(spn.cd>0)spn.cd-=dt; continue; }
+    if(spn.barH+0.5<player.position.y || spn.barH-0.5>player.position.y+1.4) continue;   // 高过横杆=躲过
+    const dx=player.position.x-spn.x, dz=player.position.z-spn.z;
+    const ca=Math.cos(spn.ang), sa=Math.sin(spn.ang);
+    const along=dx*ca-dz*sa, perp=dx*sa+dz*ca;       // u=(cos,-sin) 沿杆；p=(sin,cos) 垂直
+    if(Math.abs(along)>spn.len/2 || Math.abs(perp)>0.45+PR) continue;
+    const s=Math.sign(perp)||1;                        // 命中：沿横杆垂直方向扫飞 + 上抛 + 短硬直
+    vel.x=sa*s*15; vel.z=ca*s*15; vy=8.5; grounded=false; squashV=7; stun=0.35; spn.cd=0.5; A.hit();
+  }
+  // 朝向
+  const sp=Math.hypot(vel.x,vel.z);
+  if(sp>0.3) facing=Math.atan2(vel.x,vel.z);
+  let d=facing-player.rotation.y; while(d>Math.PI)d-=6.2832; while(d<-Math.PI)d+=6.2832;
+  player.rotation.y+=d*Math.min(1,16*dt);
+  // 冲刺扬尘
+  if(state==='play' && grounded && sp>7 && (keys.ShiftLeft||keys.ShiftRight)){ dustClock+=dt; if(dustClock>0.09){ dustClock=0; sprintDust(); } } else dustClock=0;
+  // ---- Q 弹动画（squash & stretch + 摆腿 + 倾身）----
+  const stretch = grounded?0:Math.max(-0.3,Math.min(0.35, vy*0.02));
+  squashV += (((grounded?0:stretch*10) - squash*8) - squashV*0.5)*Math.min(1,dt*14);
+  squash += squashV*dt; squash=Math.max(-0.4,Math.min(0.45,squash));
+  bean.scale.set(1-squash*0.55, 1+squash, 1-squash*0.55);
+  walkPh += sp*dt*3.2;
+  const ws = grounded?Math.min(1,sp/RUN):0;
+  legL.rotation.x = Math.sin(walkPh)*0.9*ws; legR.rotation.x=-Math.sin(walkPh)*0.9*ws;
+  armL.rotation.x = -Math.sin(walkPh)*0.7*ws; armR.rotation.x=Math.sin(walkPh)*0.7*ws;
+  bean.rotation.z = Math.sin(walkPh*0.5)*0.06*ws + (grounded?0:0);
+  bean.rotation.x = Math.min(0.25, sp*0.02) + (grounded?Math.sin(walkPh)*0.02*ws:0);
+  if(grounded&&sp<0.3){ const b=Math.sin(performance.now()*0.003); bean.position.y=b*0.03; body.position.y=0.92+b*0.02; }
+  else bean.position.y=0;
+  // 相机
+  _tgt.set(player.position.x+vel.x*0.08, player.position.y+1.2, player.position.z+vel.z*0.08);
+  _off.set(Math.sin(camYaw)*Math.cos(camPitch),Math.sin(camPitch),Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
+  _goal.copy(_tgt).add(_off); camera.position.lerp(_goal,Math.min(1,8*dt)); camera.lookAt(_tgt);
+  // 星星（磁吸 + 收集）：横向接近自动吸入，垂直加权避免从下方吸走高处的星
+  for(const s of stars){ if(!s.alive)continue; s.spin+=dt*2.4; s.m.rotation.y=s.spin;
+    _mp.set(player.position.x, player.position.y+0.9, player.position.z);
+    const dx=s.m.position.x-_mp.x, dy=s.m.position.y-_mp.y, dz=s.m.position.z-_mp.z;
+    const wd=Math.sqrt(dx*dx + dy*dy*2.9 + dz*dz);
+    if(state==='play' && wd<MAGNET_R){ s.m.position.lerp(_mp, Math.min(1,9*dt)); }
+    else { const ty=s.base+Math.sin(s.spin*1.5)*0.18, k=Math.min(1,8*dt);
+      s.m.position.x+=(s.bx-s.m.position.x)*k; s.m.position.z+=(s.bz-s.m.position.z)*k; s.m.position.y+=(ty-s.m.position.y)*k; }
+    if(state==='play' && s.m.position.distanceTo(_mp)<1.0){
+      s.alive=false; scene.remove(s.m); popStar(s.m.position.x,s.m.position.y,s.m.position.z); score++; scEl.textContent=score+'/'+total;
+      combo = (timeMs-lastCollectMs<=COMBO_WINDOW) ? combo+1 : 1; lastCollectMs=timeMs;
+      if(combo>=2){ const bn=(Math.min(combo,COMBO_MAX)-1)*COMBO_STEP; bonusMs+=bn; popCombo(combo,bn,s.m.position);
+        comboEl.textContent='连击 x'+combo; comboEl.classList.remove('on'); void comboEl.offsetWidth; comboEl.classList.add('on'); }
+      A.collect(score);
+      if(running && score>=total) showWin();
+    } }
+  // 粒子
+  for(let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.life-=dt; if(f.life<=0){ scene.remove(f.o); f.o.geometry.dispose(); f.o.material.dispose(); fx.splice(i,1); continue; }
+    const p=f.o.geometry.attributes.position; for(let j=0;j<f.vel.length;j++){ const v=f.vel[j]; v.y-=7*dt; p.array[j*3]+=v.x*dt; p.array[j*3+1]+=v.y*dt; p.array[j*3+2]+=v.z*dt; } p.needsUpdate=true; f.o.material.opacity=f.life/f.max; }
+  // 云飘
+  for(const c of clouds){ c.position.x+=dt*0.4; if(c.position.x>60)c.position.x=-60; }
+}
+player.position.set(0,3,6);
+camera.position.set(0,6,14); camera.lookAt(0,1,0);
+
+// ---- 后处理（MSAA 渲染目标保清晰 + 轻辉光）----
+const rt = new THREE.WebGLRenderTarget(innerWidth,innerHeight,{samples:4});
+const composer = new EffectComposer(renderer, rt);
+composer.addPass(new RenderPass(scene,camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.32, 0.6, 0.82));
+composer.addPass(new OutputPass());
+function resize(){ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth,innerHeight); }
+addEventListener('resize',resize); resize();
+
+let last=performance.now();
+function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
+</script>
+</body>
+</html>

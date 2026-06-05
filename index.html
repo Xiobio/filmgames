@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FilmGames · 网页游戏实验室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;700;900&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0c0a; --ink2:#11140f; --paper:#e9e0c8; --dim:#8c9184;
+    --gold:#d8b15a; --gold-bright:#f3d489; --jade:#7fc7a0; --cinnabar:#c8442f;
+    --ui:'Oswald',"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --serif:'Noto Serif SC',"Songti SC",serif; --brush:'Ma Shan Zheng',"KaiTi",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:
+      radial-gradient(120% 80% at 50% -10%, #1a1f18 0%, var(--ink) 55%);
+    color:var(--paper);font-family:var(--serif);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .grain{position:fixed;inset:0;z-index:0;opacity:.045;pointer-events:none;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
+  .wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding:72px 26px 90px}
+
+  header{text-align:center;margin-bottom:54px}
+  .kicker{font-family:var(--ui);font-weight:500;font-size:12px;letter-spacing:.55em;color:var(--gold);text-transform:uppercase;padding-left:.55em}
+  h1{font-family:var(--brush);font-size:clamp(46px,9vw,96px);line-height:1;margin-top:18px;color:var(--paper);
+    text-shadow:0 6px 40px rgba(0,0,0,.5)}
+  h1 em{font-style:normal;color:var(--gold-bright)}
+  .sub{margin-top:20px;color:var(--dim);font-size:15px;line-height:1.8;max-width:600px;margin-left:auto;margin-right:auto;font-family:var(--ui);font-weight:300;letter-spacing:.04em}
+  .seal{display:inline-grid;place-items:center;width:40px;height:40px;background:var(--cinnabar);color:#fff;
+    font-family:var(--brush);font-size:20px;border-radius:5px;margin-bottom:6px;transform:rotate(-6deg);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+
+  .lab{font-family:var(--ui);font-size:12px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;
+    margin:42px 0 16px;display:flex;align-items:center;gap:14px}
+  .lab::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(216,177,90,.4),transparent)}
+
+  a.card{display:block;text-decoration:none;color:inherit;position:relative;border-radius:10px;overflow:hidden;
+    border:1px solid rgba(216,177,90,.18);background:linear-gradient(180deg,rgba(20,24,18,.7),rgba(12,14,10,.7));
+    transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
+  a.card:hover{transform:translateY(-6px);border-color:rgba(216,177,90,.55);box-shadow:0 26px 60px -28px rgba(216,177,90,.5)}
+
+  /* featured */
+  .feature{margin-bottom:14px}
+  .feature .art{height:230px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#cdd6c8,#8a9882 40%,#2c3a2e 78%,#161d16)}
+  .feature .art .mtn{position:absolute;left:0;right:0;bottom:0;height:62%;
+    background:
+      radial-gradient(60% 80% at 20% 100%,#1e2a1f 0 40%,transparent 60%),
+      radial-gradient(50% 90% at 52% 100%,#243024 0 42%,transparent 62%),
+      radial-gradient(60% 80% at 82% 100%,#1a241b 0 44%,transparent 62%)}
+  .feature .art .mist{position:absolute;left:-10%;right:-10%;top:50%;height:30%;
+    background:radial-gradient(ellipse 50% 100% at 50% 100%,rgba(245,245,235,.6),transparent 70%);filter:blur(4px)}
+  .feature .art .sun{position:absolute;left:50%;top:24%;width:120px;height:120px;transform:translateX(-50%);border-radius:50%;
+    background:radial-gradient(circle,rgba(255,247,225,.9),transparent 65%);filter:blur(2px)}
+  .feature .seal2{position:absolute;right:34px;top:30px;width:62px;height:62px;display:grid;place-items:center;
+    background:var(--cinnabar);color:#fff;font-family:var(--brush);font-size:24px;line-height:1.05;text-align:center;border-radius:7px;
+    transform:rotate(-8deg);box-shadow:0 8px 24px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.25)}
+  .feature .body{padding:22px 26px 24px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+  .feature .tag{font-family:var(--ui);font-size:11px;letter-spacing:.24em;color:var(--jade);text-transform:uppercase}
+  .feature h2{font-family:var(--brush);font-size:38px;margin-top:6px;color:var(--paper)}
+  .feature p{color:var(--dim);font-size:13.5px;line-height:1.7;max-width:520px;margin-top:8px;font-family:var(--ui);font-weight:300}
+  .go{font-family:var(--ui);font-size:13px;letter-spacing:.18em;color:var(--gold-bright);text-transform:uppercase;white-space:nowrap}
+  .go span{display:inline-block;transition:transform .2s}
+  a.card:hover .go span{transform:translateX(5px)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+  .mini .art{height:128px;position:relative;overflow:hidden}
+  .mini .body{padding:16px 18px 18px}
+  .mini .tag{font-family:var(--ui);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  .mini h3{font-family:var(--serif);font-weight:700;font-size:20px;margin-top:5px}
+  .mini p{color:var(--dim);font-size:12.5px;line-height:1.6;margin-top:7px;font-family:var(--ui);font-weight:300}
+  .mini .go{margin-top:12px;display:block;font-size:12px}
+  /* art variants */
+  .art-cine{background:radial-gradient(120% 100% at 60% 20%,#4a3a2a,#1a1118 70%)}
+  .art-cine .t{position:absolute;left:18px;bottom:14px;font-family:'Oswald';font-weight:600;font-size:34px;letter-spacing:.02em;color:#f3eee4;opacity:.92}
+  .art-film{background:radial-gradient(120% 100% at 40% 30%,#2a1f3a,#120e1a 72%)}
+  .art-film .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;color:var(--gold-bright);font-size:20px}
+  .art-arc{background:linear-gradient(135deg,#0d1b22,#06141a)}
+  .art-arc .neon{position:absolute;inset:0;background:
+      linear-gradient(rgba(0,240,255,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(255,45,149,.10) 1px,transparent 1px);background-size:26px 26px}
+  .art-arc .t{position:absolute;left:16px;bottom:12px;font-family:'Oswald';font-weight:600;font-size:22px;color:#7af0ff}
+  .art-doc{background:linear-gradient(160deg,#23241c,#14150f)}
+  .art-doc .lines{position:absolute;left:18px;right:18px;top:20px;display:flex;flex-direction:column;gap:7px}
+  .art-doc .lines i{height:5px;border-radius:3px;background:rgba(216,177,90,.25)}
+  .art-doc .lines i:nth-child(1){width:70%}.art-doc .lines i:nth-child(2){width:90%}.art-doc .lines i:nth-child(3){width:55%}.art-doc .lines i:nth-child(4){width:80%}
+
+  .docs{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .doc{flex:1;min-width:240px;display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:10px;
+    border:1px solid rgba(216,177,90,.16);background:rgba(20,24,18,.5);text-decoration:none;color:inherit;transition:.25s}
+  .doc:hover{border-color:rgba(216,177,90,.5);background:rgba(216,177,90,.06)}
+  .doc .ic{font-size:24px}
+  .doc h4{font-family:var(--serif);font-weight:700;font-size:15px}
+  .doc p{font-family:var(--ui);font-weight:300;font-size:12px;color:var(--dim);margin-top:2px}
+
+  footer{margin-top:60px;text-align:center;color:var(--dim);font-size:12px;font-family:var(--ui);letter-spacing:.06em;line-height:1.9}
+  footer code{background:rgba(216,177,90,.12);padding:2px 8px;border-radius:5px;color:var(--gold-bright);font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+  <header>
+    <div class="seal">黔</div>
+    <div class="kicker">FilmGames · 网页游戏实验室</div>
+    <h1>用游戏的方式<br>打开<em>世界</em></h1>
+    <p class="sub">一个探索「网页能把游戏做到多像」的实验集 —— 武侠开放世界 UI、影视互动成片、动作小游戏与技术调研。点开即玩 / 即看。</p>
+  </header>
+
+  <!-- featured -->
+  <div class="lab">★ 主推 · 武侠开放世界 UI</div>
+  <a class="card feature" href="guizhou/index.html">
+    <div class="art"><div class="sun"></div><div class="mist"></div><div class="mtn"></div><div class="seal2">入<br>黔</div></div>
+    <div class="body">
+      <div>
+        <div class="tag">Open World HUD · 可交互</div>
+        <h2>用游戏的方式打开 · 贵州</h2>
+        <p>水墨山水 + 武侠 HUD 覆层 + 印章入场转场。气血/内力/轻功、雷达地图、任务卷轴、技能栏一应俱全，可切换 5 个名胜地区，支持上传你自己的视频当背景。</p>
+      </div>
+      <div class="go">进入黔境 <span>→</span></div>
+    </div>
+  </a>
+  <p style="margin:10px 2px 0;font-family:var(--ui);font-size:13px;color:var(--dim);line-height:1.95">
+    🫧 <a href="funworld.html" style="color:#ff7aa3;font-size:15px;text-decoration:none"><b>豆豆乐园 · 卡通 3D 新方向（糖豆人风）→</b></a>
+    <span style="opacity:.75">实体几何·清晰不糊·真实地面无穿模·Q 弹程序化动画+落地扬尘·糖果色软阴影·收星星/踩弹簧·桌面&手机。WASD 移动 · 空格跳 · Shift 冲刺。</span><br>
+    🎮 <a href="guizhou/p4-splat.html" style="color:var(--jade);font-size:15px;text-decoration:none"><b>P4-splat · 网页 AAA 武侠动作游戏（高斯泼溅实景版）→</b></a>
+    <span style="opacity:.75">高斯泼溅实景世界 + 真角色换装 + 小怪/Boss 战斗(连击/闪避/境界/补给) + 电影级渲染(体积光/时段调色) + 动态音乐 + 桌面&手机双端。WASD 移动 · Shift 闪避 · 1/左键 剑气 · 进入后 H 看操作 · 右下面板切场景/上传你的实景与角色。</span><br>
+    📘 <a href="docs/网页AAA动作游戏-可行性总览.md" style="color:var(--gold-bright)">可行性总览 & 技术报告（这套方案怎么做到的 / 完整能力清单 / 如何扩展）</a><br>
+    📄 <a href="docs/真贵州实景泼溅管线.md" style="color:var(--dim)">真贵州实景泼溅管线（实拍 → 泼溅 → 进游戏）</a> ·
+    <a href="docs/AAA升级日志.md" style="color:var(--dim)">33 轮升级日志</a><br>
+    <span style="opacity:.5">演进版本：</span>
+    <a href="guizhou/p4-combat.html" style="color:var(--dim)">P4 战斗</a> ·
+    <a href="guizhou/p2p3-juiced.html" style="color:var(--dim)">P2+P3 后处理</a> ·
+    <a href="guizhou/p1-character.html" style="color:var(--dim)">P1 角色</a> ·
+    <a href="guizhou/p0-walkable.html" style="color:var(--dim)">P0 可走动</a>
+  </p>
+
+  <!-- 用游戏的方式打开影视 -->
+  <div class="lab">用游戏的方式打开影视 · 无耻之徒</div>
+  <div class="grid">
+    <a class="card mini" href="shameless/film.html">
+      <div class="art art-film"><div class="play">▶</div></div>
+      <div class="body"><div class="tag">自动播放成片</div><h3>SHAMELESS · 成片</h3>
+        <p>点一下播放就自己放完：标题→自动选角→章节→HUD/对白/任务→成就，全程电影转场。</p>
+        <span class="go">播放 →</span></div>
+    </a>
+    <a class="card mini" href="shameless/index.html">
+      <div class="art art-cine"><div class="t">SHAMELESS</div></div>
+      <div class="body"><div class="tag">可交互原型</div><h3>无耻之徒 · 互动</h3>
+        <p>真实剧照 + 游戏 UI：选角色、进场景、点热点触发剧情碎片与彩蛋。</p>
+        <span class="go">体验 →</span></div>
+    </a>
+    <a class="card mini" href="arcade/index.html">
+      <div class="art art-arc"><div class="neon"></div><div class="t">ARCADE</div></div>
+      <div class="body"><div class="tag">动作小游戏 ×3</div><h3>街机馆</h3>
+        <p>霓虹跳跃 / 星陨射击 / 3D 跑酷 —— 三种类型、三档难度，感受手感与打击感。</p>
+        <span class="go">进入 →</span></div>
+    </a>
+  </div>
+
+  <!-- 调研文档 -->
+  <div class="lab">技术调研</div>
+  <div class="docs">
+    <a class="doc" href="docs/网页动作游戏调研报告.md">
+      <span class="ic">📑</span><div><h4>网页动作游戏调研报告</h4><p>技术栈 / 引擎 / 代表作 / 难度 / 发行</p></div>
+    </a>
+    <a class="doc" href="docs/精选可玩清单.md">
+      <span class="ic">🎮</span><div><h4>精选可玩清单</h4><p>2026 现存最好看的网页 3D 游戏 · 已验证链接</p></div>
+    </a>
+    <a class="doc" href="docs/形似AAA渲染方案.md">
+      <span class="ic">🐉</span><div><h4>形似 AAA 渲染方案</h4><p>武侠开放世界：移动/切模型/技能VFX/动画怎么渲染</p></div>
+    </a>
+    <a class="doc" href="docs/网页游戏案例库.md">
+      <span class="ic">🗂️</span><div><h4>网页游戏案例库</h4><p>所有示例游戏/网站分类整理 · 含链接</p></div>
+    </a>
+    <a class="doc" href="docs/AAA网页UI技法.md">
+      <span class="ic">✨</span><div><h4>AAA 网页 UI 技法</h4><p>菜单质感八原则 + 实现技法 + 免费氛围视频素材</p></div>
+    </a>
+  </div>
+
+  <footer>
+    全部纯前端 · 双击任意 <code>index.html</code> 即可打开，或起本地服务器 <code>python -m http.server 8753</code><br>
+    武侠 UI 与无耻之徒成片可「录屏」导出为视频 · 结构见 <code>README.md</code>
+  </footer>
+</div>
+</body>
+</html>

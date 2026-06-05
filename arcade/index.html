@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>网页动作游戏体验馆 · ARCADE</title>
+<style>
+  :root{
+    --bg:#0a0a14; --bg2:#12122a;
+    --neon:#00f0ff; --pink:#ff2d95; --gold:#ffd34e; --green:#3dff9a; --purple:#a855f7;
+    --txt:#e8ecff; --dim:#8b90b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:radial-gradient(1200px 800px at 50% -10%, #1b1b3a 0%, var(--bg) 60%);
+    color:var(--txt); min-height:100%; overflow-x:hidden; position:relative;
+  }
+  /* 动态网格背景 */
+  .grid-bg{position:fixed;inset:0;z-index:0;opacity:.35;pointer-events:none;
+    background-image:linear-gradient(rgba(0,240,255,.12) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,240,255,.12) 1px,transparent 1px);
+    background-size:48px 48px; mask-image:linear-gradient(to bottom,transparent,#000 30%,#000 70%,transparent);
+    animation:scroll 18s linear infinite;}
+  @keyframes scroll{from{background-position:0 0}to{background-position:0 480px}}
+  .glowball{position:fixed;border-radius:50%;filter:blur(80px);opacity:.5;z-index:0;pointer-events:none}
+  .gb1{width:420px;height:420px;background:var(--neon);top:-120px;left:-100px;animation:float1 14s ease-in-out infinite}
+  .gb2{width:380px;height:380px;background:var(--pink);bottom:-120px;right:-80px;animation:float2 16s ease-in-out infinite}
+  @keyframes float1{50%{transform:translate(80px,60px)}}
+  @keyframes float2{50%{transform:translate(-60px,-50px)}}
+
+  .wrap{position:relative;z-index:2;max-width:1160px;margin:0 auto;padding:64px 24px 80px}
+  header{text-align:center;margin-bottom:54px}
+  .kicker{letter-spacing:.5em;font-size:12px;color:var(--neon);text-transform:uppercase;margin-bottom:14px;opacity:.85}
+  h1{font-size:clamp(34px,6vw,68px);font-weight:800;line-height:1.05;
+     background:linear-gradient(90deg,var(--neon),var(--pink) 60%,var(--gold));
+     -webkit-background-clip:text;background-clip:text;color:transparent;
+     text-shadow:0 0 40px rgba(0,240,255,.25)}
+  .sub{margin-top:18px;color:var(--dim);font-size:16px;max-width:620px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+  .card{position:relative;background:linear-gradient(160deg,rgba(30,30,60,.7),rgba(16,16,36,.7));
+    border:1px solid rgba(120,130,200,.18); border-radius:20px; padding:26px 24px 24px;
+    backdrop-filter:blur(8px); overflow:hidden; transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;
+    text-decoration:none; color:inherit; display:flex; flex-direction:column}
+  .card::before{content:"";position:absolute;inset:0;border-radius:20px;padding:1px;
+    background:linear-gradient(140deg,var(--c1),transparent 55%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .25s}
+  .card:hover{transform:translateY(-6px);border-color:transparent;box-shadow:0 20px 50px -20px var(--c1)}
+  .card:hover::before{opacity:1}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--c1);border:1px solid var(--c1);border-radius:999px;
+    padding:5px 12px;align-self:flex-start;opacity:.9}
+  .card h2{font-size:25px;margin:18px 0 4px;font-weight:750}
+  .en{font-size:12px;color:var(--dim);letter-spacing:.22em;text-transform:uppercase}
+  .desc{color:var(--dim);font-size:14px;line-height:1.65;margin:14px 0 18px;flex:1}
+  .meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--dim);
+    border-top:1px solid rgba(120,130,200,.14);padding-top:14px}
+  .stars{color:var(--gold);letter-spacing:2px}
+  .tech{font-family:ui-monospace,"Cascadia Code",monospace;font-size:11px;opacity:.8}
+  .play{margin-top:16px;display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--c1)}
+  .play svg{transition:transform .2s}
+  .card:hover .play svg{transform:translateX(5px)}
+
+  .note{margin-top:54px;text-align:center;color:var(--dim);font-size:13px;line-height:1.9}
+  .note code{background:rgba(120,130,200,.16);padding:2px 8px;border-radius:6px;color:var(--neon);font-family:ui-monospace,monospace}
+  footer{margin-top:40px;text-align:center;color:var(--dim);font-size:12px;opacity:.7}
+</style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="glowball gb1"></div>
+  <div class="glowball gb2"></div>
+
+  <div class="wrap">
+    <header>
+      <div class="kicker">Web Action Games · Playground</div>
+      <h1>网页动作游戏<br/>体验馆</h1>
+      <p class="sub">三款不同类型、不同难度的小游戏，全部纯前端、打开即玩。<br/>亲手感受「用网页做精美动作游戏」到底是什么体验。</p>
+    </header>
+
+    <div class="grid">
+      <a class="card" href="games/platformer.html" style="--c1:var(--neon)">
+        <span class="badge">平台跳跃 · Platformer</span>
+        <h2>霓虹跳跃</h2>
+        <div class="en">NEON LEAP</div>
+        <p class="desc">手感优先的横版跳跃。加速度移动、土狼时间、跳跃缓冲、落地扬尘与屏幕轻震 —— 体会「为什么跳跃手感这么难调」。</p>
+        <div class="play">开始游戏 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="meta"><span class="stars">★★☆☆☆ 入门</span><span class="tech">Canvas2D · 原生 JS</span></div>
+      </a>
+
+      <a class="card" href="games/shooter.html" style="--c1:var(--pink)">
+        <span class="badge">街机射击 · Twin-stick</span>
+        <h2>星陨幸存者</h2>
+        <div class="en">STARFALL</div>
+        <p class="desc">鼠标瞄准、四向移动的竞技场射击。成群的敌人、爆炸粒子、顿帧、连击与屏幕震动 —— 这就是「打击感 / juice」的密集展示。</p>
+        <div class="play">开始游戏 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="meta"><span class="stars">★★★☆☆ 中等</span><span class="tech">Canvas2D · 粒子系统</span></div>
+      </a>
+
+      <a class="card" href="games/runner3d.html" style="--c1:var(--purple)">
+        <span class="badge">3D 跑酷 · Endless Runner</span>
+        <h2>霓虹疾驰</h2>
+        <div class="en">NEON RUN</div>
+        <p class="desc">真正的 3D：换道躲避障碍、加速、雾效与发光赛道。用 Three.js（WebGL）搭建 —— 直观感受 2D 到 3D 的难度跃迁。</p>
+        <div class="play">开始游戏 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="meta"><span class="stars">★★★★☆ 较高</span><span class="tech">Three.js · WebGL</span></div>
+      </a>
+    </div>
+
+    <p class="note">
+      操作提示：跳跃用 <code>← → / A D</code> + <code>空格</code>；射击用 <code>WASD</code> 移动 + <code>鼠标</code> 瞄准开火；跑酷用 <code>← →</code> 换道 + <code>空格</code> 跳。<br/>
+      三款游戏均无需安装。前两款纯离线可玩；3D 跑酷需联网加载 Three.js（已内置加载失败提示）。
+    </p>
+    <footer>用原生 Web 技术手工搭建 · 作为「网页动作游戏技术调研」的可玩样例</footer>
+  </div>
+</body>
+</html>

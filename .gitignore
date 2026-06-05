@@ -1,0 +1,17 @@
+# 大体积高斯泼溅素材（单文件超 GitHub 100MB 限制；可从 CDN / Hugging Face 重新下载，见 docs/真贵州实景泼溅管线.md）
+guizhou/assets/splats/
+*.splat
+*.spz
+*.ply
+
+# 本地运行 / 测试 / 工具产物（非项目内容）
+.playwright-mcp/
+.claude/
+.superpowers/
+
+# 系统 / 编辑器 / 依赖
+.DS_Store
+Thumbs.db
+desktop.ini
+node_modules/
+*.log

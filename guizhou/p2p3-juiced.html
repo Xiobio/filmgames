@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用游戏的方式打开贵州 · 武侠开放世界 UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Oxanium:wght@400;500;600;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#10130f;
+  --paper:#e9e0c8;
+  --jade:#9fd6a8;
+  --jade-deep:#3f7d5a;
+  --gold:#d8b15a;
+  --gold-bright:#f3d489;
+  --cinnabar:#c8442f;
+  --tint: 63,125,90;          /* region tint, rgb */
+  --sky-top:#cdd6c8;
+  --sky-bot:#9aa893;
+  --mtn-far:#7c8a7a;
+  --mtn-mid:#4d5a4c;
+  --mtn-near:#222a22;
+  --hud: #e9e0c8;
+  --serif:"ZCOOL XiaoWei","Songti SC","STSong","Noto Serif SC",serif;
+  --brush:"Ma Shan Zheng","STKaiti","KaiTi","Kaiti SC",serif;
+  --tech:"Oxanium","Rajdhani",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:#05070a;
+  color:var(--hud);
+  font-family:var(--serif);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+#stage{
+  position:fixed; inset:0;
+  width:100vw; height:100vh;
+  overflow:hidden;
+  cursor:crosshair;
+}
+
+/* ---------------- SCENE (ink-wash karst world) ---------------- */
+#scene{position:absolute; inset:0; transition:filter 1.4s ease, opacity 1.4s ease;}
+#sky{position:absolute; inset:0; background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));}
+#sun{
+  position:absolute; left:50%; top:18%; width:170px; height:170px; transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, rgba(255,247,225,.95), rgba(248,224,170,.35) 55%, transparent 70%);
+  filter:blur(1px); transition:all 1.2s ease;
+}
+.svg-mtn{position:absolute; inset:0; width:100%; height:100%}
+#far path{fill:var(--mtn-far); opacity:.55; filter:blur(2px)}
+#mid path{fill:var(--mtn-mid); opacity:.8; filter:blur(.5px)}
+#near path{fill:var(--mtn-near)}
+.mist{
+  position:absolute; left:-20%; width:140%; height:46%;
+  background:radial-gradient(ellipse 55% 100% at 50% 100%, rgba(245,245,235,.5), transparent 72%);
+  pointer-events:none; will-change:transform;
+}
+#mist1{top:42%; animation:drift 26s linear infinite}
+#mist2{top:58%; opacity:.7; animation:drift 38s linear infinite reverse}
+#mist3{top:30%; opacity:.4; animation:drift 50s linear infinite}
+@keyframes drift{0%{transform:translateX(-6%)}50%{transform:translateX(6%)}100%{transform:translateX(-6%)}}
+
+/* region-specific decorations */
+#waterfall{position:absolute; left:46%; top:34%; width:70px; height:40%; opacity:0; transition:opacity 1s; pointer-events:none}
+#waterfall span{position:absolute; top:0; width:3px; height:100%; background:linear-gradient(180deg,transparent,rgba(255,255,255,.85),rgba(255,255,255,.4)); animation:fall 1.1s linear infinite}
+#waterfall span:nth-child(1){left:6px;animation-delay:0s}
+#waterfall span:nth-child(2){left:16px;animation-delay:.2s}
+#waterfall span:nth-child(3){left:26px;animation-delay:.45s}
+#waterfall span:nth-child(4){left:38px;animation-delay:.1s}
+#waterfall span:nth-child(5){left:50px;animation-delay:.55s}
+#waterfall span:nth-child(6){left:60px;animation-delay:.3s}
+@keyframes fall{0%{transform:translateY(-30%);opacity:.2}40%{opacity:.95}100%{transform:translateY(60%);opacity:0}}
+#wmist{position:absolute; left:42%; top:68%; width:90px; height:60px; border-radius:50%; background:radial-gradient(rgba(255,255,255,.8),transparent 70%); filter:blur(8px); opacity:0; transition:opacity 1s; animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.25);opacity:.8}}
+
+#water{position:absolute; left:0; bottom:0; width:100%; height:14%; opacity:0; transition:opacity 1s;
+  background:linear-gradient(180deg, rgba(120,200,180,.05), rgba(80,170,150,.35));
+  pointer-events:none}
+#water::after{content:""; position:absolute; inset:0;
+  background:repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,.18) 14px 16px);
+  animation:shimmer 6s linear infinite; mix-blend-mode:screen}
+@keyframes shimmer{to{transform:translateX(30px)}}
+
+#lanterns{position:absolute; inset:0; opacity:0; transition:opacity 1s; pointer-events:none}
+.lantern{position:absolute; width:5px; height:5px; border-radius:50%;
+  background:radial-gradient(circle,#ffd27a,#e8943a 60%,transparent);
+  box-shadow:0 0 8px 2px rgba(255,180,90,.7); animation:twinkle 2.4s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.4;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+
+/* user media background */
+#userVid,#userImg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none}
+
+/* region color tint */
+#tint{position:absolute; inset:0; background:rgba(var(--tint),.16); mix-blend-mode:multiply; transition:background 1.2s ease; pointer-events:none}
+#grade{position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 55%, rgba(0,0,0,.45)),
+    linear-gradient(180deg, rgba(0,0,0,.18), transparent 30%, transparent 70%, rgba(0,0,0,.5));
+}
+/* film grain + scanline atmosphere */
+#grain{position:absolute; inset:0; opacity:.05; pointer-events:none; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");}
+#scan{position:absolute; inset:0; pointer-events:none; opacity:.06;
+  background:repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 3px)}
+#particles{position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:5}
+.mote{position:absolute; bottom:-12px; border-radius:50%;
+  background:rgba(255,247,225,.8); box-shadow:0 0 7px rgba(255,238,196,.7);
+  animation:floatUp linear infinite; will-change:transform,opacity}
+@keyframes floatUp{
+  0%{transform:translate(0,0) scale(1); opacity:0}
+  12%{opacity:.85}
+  88%{opacity:.85}
+  100%{transform:translate(var(--dx,0),-112vh) scale(.7); opacity:0}
+}
+
+/* ---------------- HUD ---------------- */
+#hud{position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .6s}
+#hud.show{opacity:1}
+.frame{
+  background:linear-gradient(180deg, rgba(16,19,15,.78), rgba(16,19,15,.66));
+  border:1px solid rgba(216,177,90,.45);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 6px 24px rgba(0,0,0,.45), inset 0 0 24px rgba(0,0,0,.4);
+}
+.corner{position:relative}
+.corner::before,.corner::after{content:""; position:absolute; width:12px; height:12px; border:2px solid var(--gold)}
+.corner::before{top:-2px; left:-2px; border-right:0; border-bottom:0}
+.corner::after{bottom:-2px; right:-2px; border-left:0; border-top:0}
+
+/* top-left: hero panel */
+.hud-tl{position:absolute; top:22px; left:24px; width:296px; padding:13px 15px 14px; opacity:0; animation:slideL .7s .2s both}
+.hero-row{display:flex; align-items:center; gap:12px}
+.avatar{width:54px; height:54px; flex:none; border-radius:50%; border:2px solid var(--gold);
+  background:radial-gradient(circle at 50% 35%, #4a5a4a, #1a221a);
+  position:relative; overflow:hidden; box-shadow:0 0 12px rgba(216,177,90,.35)}
+.avatar svg{position:absolute; left:50%; bottom:-2px; width:38px; transform:translateX(-50%)}
+.hero-meta{flex:1; min-width:0}
+.hero-name{font-family:var(--brush); font-size:24px; line-height:1; color:var(--paper); letter-spacing:1px}
+.hero-title{font-size:11px; color:var(--gold-bright); letter-spacing:3px; margin-top:4px; font-family:var(--tech)}
+.bars{margin-top:11px; display:flex; flex-direction:column; gap:7px}
+.bar{display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:1px}
+.bar .lab{width:26px; color:var(--paper); opacity:.85; font-family:var(--serif)}
+.track{flex:1; height:8px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12); position:relative; overflow:hidden}
+.fill{position:absolute; inset:0; transform-origin:left; transition:transform .35s ease}
+.fill.hp{background:linear-gradient(90deg,#c8442f,#e8795f)}
+.fill.qi{background:linear-gradient(90deg,#3f7d5a,#9fd6a8)}
+.fill.st{background:linear-gradient(90deg,#b78a2e,#f3d489)}
+.bar .num{width:46px; text-align:right; font-family:var(--tech); color:var(--paper); opacity:.8; font-size:10px}
+
+/* top-right: region + minimap */
+.hud-tr{position:absolute; top:22px; right:24px; width:230px; opacity:0; animation:slideR .7s .25s both}
+.region-tag{display:flex; align-items:center; justify-content:flex-end; gap:8px}
+.region-tag .cn{font-family:var(--brush); font-size:26px; color:var(--paper); text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.region-tag .py{font-family:var(--tech); font-size:11px; letter-spacing:3px; color:var(--gold-bright); writing-mode:vertical-rl; text-orientation:mixed; opacity:.9}
+.minimap{margin-top:12px; width:230px; height:160px; padding:8px; position:relative}
+.radar{position:absolute; inset:8px; border-radius:6px; overflow:hidden;
+  background:radial-gradient(circle at 50% 50%, rgba(63,125,90,.28), rgba(10,14,10,.85));
+}
+.radar .ring{position:absolute; inset:0; border-radius:50%; border:1px solid rgba(216,177,90,.25); margin:auto;}
+.radar .ring.r1{width:130px;height:130px}
+.radar .ring.r2{width:84px;height:84px}
+.radar .ring.r3{width:40px;height:40px}
+.sweep{position:absolute; left:50%; top:50%; width:50%; height:2px; transform-origin:left center;
+  background:linear-gradient(90deg,rgba(159,214,168,.9),transparent); animation:sweep 3.4s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.you{position:absolute; left:50%; top:50%; width:8px; height:8px; transform:translate(-50%,-50%) rotate(0); }
+.you svg{width:100%; height:100%; fill:var(--gold-bright)}
+.blip{position:absolute; width:6px; height:6px; border-radius:50%; background:var(--cinnabar); box-shadow:0 0 6px var(--cinnabar); transform:translate(-50%,-50%)}
+.blip.q{background:var(--gold-bright); box-shadow:0 0 8px var(--gold-bright); animation:twinkle 1.6s infinite}
+.compass{position:absolute; top:10px; left:50%; transform:translateX(-50%); font-family:var(--tech); font-size:10px; letter-spacing:2px; color:var(--gold-bright); z-index:2}
+.coords{position:absolute; bottom:10px; left:14px; font-family:var(--tech); font-size:10px; color:var(--paper); opacity:.7; z-index:2}
+.daytime{position:absolute; bottom:10px; right:14px; font-family:var(--serif); font-size:11px; color:var(--gold-bright); z-index:2}
+
+/* quest scroll */
+.hud-quest{position:absolute; top:215px; right:24px; width:236px; padding:13px 15px; opacity:0; animation:slideR .7s .4s both}
+.quest-h{display:flex; align-items:center; gap:8px; border-bottom:1px solid rgba(216,177,90,.35); padding-bottom:7px; margin-bottom:9px}
+.quest-h .seal{width:18px;height:18px;display:grid;place-items:center;background:var(--cinnabar);color:#fff;font-family:var(--brush);font-size:12px;border-radius:3px}
+.quest-h .t{font-family:var(--serif); font-size:13px; letter-spacing:2px; color:var(--gold-bright)}
+.quest-main{font-family:var(--brush); font-size:19px; color:var(--paper); margin-bottom:9px}
+.obj{display:flex; gap:8px; font-size:12.5px; color:var(--paper); opacity:.92; margin:6px 0; line-height:1.35}
+.obj .box{width:13px;height:13px;flex:none;border:1.5px solid var(--gold);margin-top:2px;position:relative}
+.obj.done .box{background:var(--jade-deep)}
+.obj.done .box::after{content:"✓";position:absolute;inset:-3px 0 0;color:#fff;font-size:11px;text-align:center}
+.obj.done span{text-decoration:line-through; opacity:.55}
+.obj .box.cur{border-color:var(--gold-bright); box-shadow:0 0 8px var(--gold-bright); animation:twinkle 1.4s infinite}
+
+/* bottom skill bar */
+.hud-skills{position:absolute; bottom:26px; left:50%; transform:translateX(-50%); display:flex; gap:12px; opacity:0; animation:rise .7s .5s both}
+.slot{width:54px; height:54px; position:relative; display:grid; place-items:center}
+.slot .key{position:absolute; top:-9px; left:-6px; width:20px; height:20px; display:grid; place-items:center;
+  font-family:var(--tech); font-size:11px; color:var(--ink); background:var(--gold-bright); border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.slot .ic{font-family:var(--brush); font-size:22px; color:var(--paper)}
+.slot .nm{position:absolute; bottom:-18px; left:0; right:0; text-align:center; font-size:10px; letter-spacing:1px; color:var(--paper); opacity:.75}
+.slot .cd{position:absolute; inset:0; background:rgba(8,10,8,.78); transform-origin:bottom; transform:scaleY(0); pointer-events:none}
+
+/* dialogue / narrator bar */
+.hud-talk{position:absolute; left:50%; bottom:108px; transform:translateX(-50%); width:min(640px,80vw); padding:14px 22px; opacity:0; animation:rise .7s .55s both}
+.talk-name{font-family:var(--brush); font-size:18px; color:var(--gold-bright); margin-bottom:5px}
+.talk-line{font-size:15px; line-height:1.6; color:var(--paper); min-height:24px; letter-spacing:.5px}
+.talk-line::after{content:"▍"; color:var(--gold-bright); animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* center interaction prompt + waypoint */
+.prompt{position:absolute; left:50%; top:58%; transform:translate(-50%,-50%); display:flex; align-items:center; gap:10px;
+  padding:8px 16px 8px 8px; background:rgba(16,19,15,.6); border:1px solid rgba(216,177,90,.5); border-radius:40px;
+  opacity:0; transition:opacity .25s}
+.prompt.on{opacity:1}
+.prompt .k{width:30px;height:30px;display:grid;place-items:center;font-family:var(--tech);background:var(--paper);color:var(--ink);border-radius:6px;font-size:14px;box-shadow:0 2px 0 #b9ac84}
+.prompt .txt{font-size:14px; letter-spacing:1px}
+.waypoint{position:absolute; left:62%; top:40%; transform:translate(-50%,-50%); text-align:center; pointer-events:none}
+.waypoint .pin{font-size:22px; color:var(--gold-bright); filter:drop-shadow(0 0 6px rgba(216,177,90,.8)); animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.waypoint .d{font-family:var(--tech); font-size:12px; color:var(--paper); background:rgba(0,0,0,.4); padding:1px 7px; border-radius:10px; margin-top:2px; display:inline-block}
+.waypoint .nm{font-size:12px; color:var(--gold-bright); margin-top:3px; letter-spacing:1px}
+
+/* toast events */
+#toasts{position:absolute; left:24px; bottom:120px; display:flex; flex-direction:column-reverse; gap:8px}
+.toast{padding:9px 16px 9px 13px; background:linear-gradient(90deg,rgba(16,19,15,.85),rgba(16,19,15,.55)); border-left:3px solid var(--gold);
+  font-size:13px; letter-spacing:.5px; animation:toastIn .4s ease, toastOut .5s 3.6s forwards; box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.toast.ach{border-left-color:var(--cinnabar)}
+.toast .lab{font-family:var(--tech); font-size:10px; letter-spacing:3px; color:var(--gold-bright); display:block; margin-bottom:2px}
+.toast.ach .lab{color:var(--cinnabar)}
+@keyframes toastIn{from{opacity:0; transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0; transform:translateX(-24px)}}
+
+/* big "新地点发现" banner */
+#discover{position:absolute; left:50%; top:24%; transform:translateX(-50%); text-align:center; opacity:0; pointer-events:none}
+#discover .lab{font-family:var(--tech); letter-spacing:8px; font-size:13px; color:var(--gold-bright)}
+#discover .nm{font-family:var(--brush); font-size:46px; color:var(--paper); text-shadow:0 3px 14px rgba(0,0,0,.7); margin-top:4px}
+#discover .ln{width:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); margin:8px auto 0}
+
+/* fps flavor */
+.fps{position:absolute; top:8px; left:50%; transform:translateX(-50%); font-family:var(--tech); font-size:10px; color:rgba(233,224,200,.5); letter-spacing:1px}
+
+@keyframes slideL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+@keyframes slideR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translate(-50%,24px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ---------------- TRANSITION OVERLAY ---------------- */
+#trans{position:absolute; inset:0; z-index:40; pointer-events:none; opacity:0}
+#trans.run{opacity:1}
+#inkA{position:absolute; inset:0; background:#06080a; clip-path:circle(0% at 50% 55%);}
+#inkText{position:absolute; inset:0; display:grid; place-items:center; text-align:center}
+#inkText .cn{font-family:var(--brush); font-size:clamp(64px,12vw,150px); color:var(--paper); letter-spacing:6px; opacity:0; filter:blur(14px); text-shadow:0 6px 30px rgba(0,0,0,.8)}
+#inkText .py{font-family:var(--tech); font-size:clamp(13px,1.6vw,18px); letter-spacing:14px; color:var(--gold-bright); margin-top:14px; opacity:0}
+#inkText .sub{font-family:var(--serif); font-size:15px; letter-spacing:4px; color:rgba(233,224,200,.8); margin-top:18px; opacity:0}
+#seal{position:absolute; right:18%; top:30%; width:84px;height:84px; display:grid; place-items:center;
+  background:var(--cinnabar); color:#fff; font-family:var(--brush); font-size:34px; line-height:1.1; text-align:center;
+  border-radius:8px; transform:scale(0) rotate(-18deg); box-shadow:0 8px 30px rgba(0,0,0,.5); border:2px solid rgba(255,255,255,.25)}
+#enterLine{position:absolute; left:0; right:0; top:50%; height:2px; background:linear-gradient(90deg,transparent,var(--gold),transparent); transform:scaleX(0)}
+
+/* light wipe for region switch */
+#wipe{position:absolute; inset:0; z-index:38; pointer-events:none;
+  background:linear-gradient(90deg,transparent 40%, rgba(16,19,15,.92) 50%, transparent 60%);
+  transform:translateX(-100%)}
+
+/* ---------------- START SCREEN ---------------- */
+#start{position:absolute; inset:0; z-index:50; display:grid; place-items:center; text-align:center;
+  background:radial-gradient(120% 90% at 50% 30%, rgba(20,28,22,.66), rgba(6,8,10,.93) 78%);}
+#start .wrap{padding:0 24px}
+#start .kicker{font-family:var(--tech); letter-spacing:10px; font-size:12px; color:var(--gold-bright); margin-bottom:18px}
+#start .big{font-family:var(--brush); font-size:clamp(52px,11vw,120px); color:var(--paper); line-height:1; text-shadow:0 6px 34px rgba(0,0,0,.7)}
+#start .big em{color:var(--jade); font-style:normal; animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{text-shadow:0 0 0 rgba(159,214,168,0)}50%{text-shadow:0 0 26px rgba(159,214,168,.65)}}
+#start .desc{font-size:14px; line-height:1.8; color:rgba(233,224,200,.78); max-width:430px; margin:26px auto 0; letter-spacing:.5px}
+#start .cta{margin-top:34px; display:inline-flex; align-items:center; gap:12px; cursor:pointer; pointer-events:auto;
+  padding:14px 34px; background:linear-gradient(180deg,rgba(216,177,90,.16),rgba(216,177,90,.04));
+  border:1px solid var(--gold); color:var(--gold-bright); font-family:var(--serif); font-size:17px; letter-spacing:4px;
+  position:relative; transition:.25s; box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#start .cta:hover{background:rgba(216,177,90,.22); box-shadow:0 0 24px rgba(216,177,90,.35); transform:translateY(-1px)}
+@keyframes ctaPulse{0%,100%{box-shadow:0 0 0 1px rgba(0,0,0,.4)}50%{box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 28px rgba(216,177,90,.42)}}
+#start .cta{animation:ctaPulse 2.6s ease-in-out infinite}
+#start .cta .k{font-family:var(--tech); font-size:12px; background:var(--gold-bright); color:var(--ink); padding:3px 8px; border-radius:4px}
+#start .hint{margin-top:18px; font-family:var(--tech); font-size:11px; letter-spacing:2px; color:rgba(233,224,200,.4)}
+
+/* ---------------- CONTROL PANEL ---------------- */
+#panel{position:absolute; bottom:18px; right:18px; z-index:60; width:250px; pointer-events:auto;
+  font-family:var(--serif); transform:translateY(0); transition:transform .3s}
+#panel.hide{transform:translateY(calc(100% + 30px))}
+#panelToggle{position:absolute; right:0; top:-30px; pointer-events:auto; cursor:pointer;
+  font-family:var(--tech); font-size:11px; letter-spacing:2px; color:var(--gold-bright);
+  background:rgba(16,19,15,.8); border:1px solid rgba(216,177,90,.45); padding:5px 12px; border-radius:8px 8px 0 0}
+#panel .body{background:rgba(10,13,10,.95); border:1px solid rgba(216,177,90,.4); border-radius:10px; padding:13px}
+#panel h4{font-family:var(--tech); font-size:10px; letter-spacing:3px; color:var(--gold-bright); margin:2px 0 9px}
+.regs{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px}
+.regs button{font-family:var(--serif); font-size:12.5px; letter-spacing:1px; padding:7px 4px; cursor:pointer; color:var(--paper);
+  background:rgba(255,255,255,.04); border:1px solid rgba(216,177,90,.3); border-radius:6px; transition:.18s}
+.regs button:hover{background:rgba(216,177,90,.16); border-color:var(--gold)}
+.regs button.active{background:rgba(63,125,90,.3); border-color:var(--jade); color:#fff}
+.prow{display:flex; gap:6px; margin-bottom:8px}
+.prow button,.prow label{flex:1; font-family:var(--serif); font-size:12px; padding:8px 4px; text-align:center; cursor:pointer; color:var(--paper);
+  background:rgba(255,255,255,.04); border:1px solid rgba(216,177,90,.3); border-radius:6px; transition:.18s}
+.prow button:hover,.prow label:hover{background:rgba(216,177,90,.16)}
+#panel .tip{font-size:11px; line-height:1.5; color:rgba(233,224,200,.55); margin-top:4px; letter-spacing:.3px}
+input[type=file]{display:none}
+
+@media (max-width:720px){
+  .hud-tl{width:220px; top:14px; left:12px; transform:scale(.9); transform-origin:top left}
+  .hud-tr{width:170px; top:14px; right:12px}
+  .minimap{width:170px;height:120px}
+  .hud-quest{width:180px; top:165px; right:12px; transform:scale(.92); transform-origin:top right}
+  .hud-talk{bottom:150px; padding:11px 16px}
+  #panel{width:200px}
+}
+
+/* ===== P0: 3D 世界层 (Three.js，叠在 HUD 之下) ===== */
+#world{position:fixed;inset:0;z-index:0;display:block;width:100vw;height:100vh;background:#0a0f0c}
+#scene{z-index:1; pointer-events:none}   /* 让鼠标穿透到 3D 画布：右键转视角 / 滚轮缩放 / 左键攻击 */
+/* 隐藏假视差背景，露出真 3D 世界；保留 #tint/#grade/#grain/#scan/#particles 作氛围叠层 */
+#sky,#sun,#far,#mid,#near,.mist,#waterfall,#wmist,#water,#lanterns,#userVid,#userImg{display:none!important}
+/* 主线任务移到左侧（避免和右上角小地图/控制面板重叠）*/
+.hud-quest{ left:24px; right:auto; top:198px; animation:slideL .7s .4s both }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ===== P0: 3D 世界层画布（叠在最底层） ===== -->
+  <canvas id="world"></canvas>
+
+  <!-- ===== SCENE ===== -->
+  <div id="scene">
+    <div id="sky"></div>
+    <div id="sun"></div>
+    <video id="userVid" loop muted playsinline></video>
+    <img id="userImg" alt="">
+    <svg id="far" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,560 C120,470 180,500 260,430 C340,500 420,400 520,470 C600,410 700,500 800,420 C900,500 1000,410 1100,470 C1200,400 1320,500 1420,430 C1500,490 1560,460 1600,500 L1600,900 L0,900 Z"/></svg>
+    <svg id="mid" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,640 C90,560 150,600 230,520 C300,440 360,560 460,540 C540,470 600,600 700,560 C800,500 880,620 980,560 C1070,490 1150,610 1250,560 C1340,500 1420,610 1520,560 C1560,540 1590,560 1600,560 L1600,900 L0,900 Z"/></svg>
+    <svg id="near" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,760 C70,680 110,700 170,650 C220,600 270,640 330,690 C380,640 420,560 500,600 C560,560 610,690 690,660 C760,630 810,560 900,610 C980,650 1030,720 1120,690 C1190,660 1240,580 1330,630 C1410,670 1470,700 1560,670 C1580,665 1592,670 1600,672 L1600,900 L0,900 Z"/></svg>
+    <div class="mist" id="mist3"></div>
+    <div class="mist" id="mist1"></div>
+    <div class="mist" id="mist2"></div>
+    <div id="waterfall"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div id="wmist"></div>
+    <div id="water"></div>
+    <div id="lanterns"></div>
+    <div id="tint"></div>
+    <div id="grade"></div>
+    <div id="particles"></div>
+    <div id="scan"></div>
+    <div id="grain"></div>
+  </div>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud">
+    <div class="fps">VER 1.0 · 60 FPS · 黔境 OPEN WORLD</div>
+
+    <!-- hero -->
+    <div class="hud-tl frame corner">
+      <div class="hero-row">
+        <div class="avatar">
+          <svg viewBox="0 0 40 40"><path fill="#cdd6c8" d="M20 8c4 0 6 3 6 7s-2 7-6 7-6-3-6-7 2-7 6-7zM7 40c0-8 6-12 13-12s13 4 13 12z"/></svg>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-name">侠客 · 无名</div>
+          <div class="hero-title">境界 · 后天九重</div>
+        </div>
+      </div>
+      <div class="bars">
+        <div class="bar"><span class="lab">气血</span><div class="track"><div class="fill hp" id="hp"></div></div><span class="num" id="hpn">980/980</span></div>
+        <div class="bar"><span class="lab">内力</span><div class="track"><div class="fill qi" id="qi"></div></div><span class="num" id="qin">540/600</span></div>
+        <div class="bar"><span class="lab">轻功</span><div class="track"><div class="fill st" id="st"></div></div><span class="num" id="stn">100/100</span></div>
+      </div>
+    </div>
+
+    <!-- region + minimap -->
+    <div class="hud-tr">
+      <div class="region-tag">
+        <span class="py" id="rpy">GUIZHOU</span>
+        <span class="cn" id="rcn">贵 州</span>
+      </div>
+      <div class="minimap frame corner">
+        <div class="radar">
+          <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+          <div class="sweep"></div>
+          <div class="you"><svg viewBox="0 0 10 10"><path d="M5 0L9 9L5 7L1 9Z"/></svg></div>
+          <div class="blip q" style="left:64%;top:34%"></div>
+          <div class="blip" style="left:38%;top:62%"></div>
+          <div class="blip" style="left:72%;top:70%"></div>
+          <div class="compass">北 N</div>
+          <div class="coords" id="coords">E 106° · N 26°</div>
+          <div class="daytime" id="daytime">☀ 晌午</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- quest -->
+    <div class="hud-quest frame corner">
+      <div class="quest-h"><span class="seal">务</span><span class="t">MAIN QUEST · 主线</span></div>
+      <div class="quest-main" id="qMain">黔山探秘</div>
+      <div id="qObjs"></div>
+    </div>
+
+    <!-- discover banner -->
+    <div id="discover"><div class="lab">NEW LOCATION DISCOVERED</div><div class="nm" id="discName">黄果树瀑布</div><div class="ln"></div></div>
+
+    <!-- waypoint + prompt -->
+    <div class="waypoint"><div class="pin">◈</div><div class="d" id="wpDist">240 m</div><div class="nm" id="wpName">前往观景台</div></div>
+    <div class="prompt" id="prompt"><span class="k">F</span><span class="txt" id="promptTxt">探索此地</span></div>
+
+    <!-- narrator -->
+    <div class="hud-talk frame corner">
+      <div class="talk-name" id="talkName">向导 · 阿黔</div>
+      <div class="talk-line" id="talkLine"></div>
+    </div>
+
+    <!-- skill bar -->
+    <div class="hud-skills">
+      <div class="slot frame"><span class="key">Q</span><span class="ic">疾</span><span class="nm">疾风步</span><div class="cd" id="cd0"></div></div>
+      <div class="slot frame"><span class="key">␣</span><span class="ic">轻</span><span class="nm">轻功·踏云</span><div class="cd" id="cd1"></div></div>
+      <div class="slot frame"><span class="key">E</span><span class="ic">观</span><span class="nm">天眼·望远</span><div class="cd" id="cd2"></div></div>
+      <div class="slot frame"><span class="key">R</span><span class="ic">归</span><span class="nm">归乡符</span><div class="cd" id="cd3"></div></div>
+    </div>
+
+    <div id="toasts"></div>
+  </div>
+
+  <!-- ===== TRANSITION ===== -->
+  <div id="trans">
+    <div id="inkA"></div>
+    <div id="enterLine"></div>
+    <div id="inkText"><div><div class="cn" id="tCn">贵 州</div><div class="py" id="tPy">GUI ZHOU</div><div class="sub" id="tSub">山地公园省 · 多彩贵州</div></div></div>
+    <div id="seal">入<br>黔</div>
+  </div>
+  <div id="wipe"></div>
+
+  <!-- ===== START ===== -->
+  <div id="start">
+    <div class="wrap">
+      <div class="kicker">OPEN WORLD · 武侠开放世界</div>
+      <div class="big">用游戏的方式<br>打开<em>贵州</em></div>
+      <div class="desc">一座 17 万平方公里的开放世界地图。瀑、峰、洞、寨皆为坐标，山水之间，皆是江湖。点击进入，体验「游戏界面转场」与武侠 HUD 覆层。</div>
+      <div class="cta" id="enterBtn"><span class="k">SPACE</span> 进 入 黔 境</div>
+      <div class="hint">右下角面板可切换地区 / 上传你自己的贵州视频做背景</div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL ===== -->
+  <div id="panel">
+    <div id="panelToggle">面板 ▾</div>
+    <div class="body">
+      <h4>REGION · 切换地区(触发转场)</h4>
+      <div class="regs" id="regBtns"></div>
+      <h4>BACKGROUND · 背景</h4>
+      <div class="prow">
+        <label for="fileVid">⬆ 上传视频</label>
+        <label for="fileImg">⬆ 上传图片</label>
+        <button id="resetBg">水墨场景</button>
+      </div>
+      <div class="prow">
+        <button id="dayBtn">☀ 昼夜</button>
+        <button id="hudBtn">隐藏 HUD</button>
+        <button id="replayBtn">↻ 重放转场</button>
+      </div>
+      <div class="tip">提示：隐藏 HUD 可截干净的背景；录屏此页即可叠加到你的素材上。</div>
+      <input type="file" id="fileVid" accept="video/*">
+      <input type="file" id="fileImg" accept="image/*">
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
+/* ---- region data (贵州名胜) ---- */
+const REGIONS=[
+  {cn:"贵 州", py:"GUI ZHOU", sub:"山地公园省 · 多彩贵州", seal:"入<br>黔",
+   tint:"63,125,90", sky:["#cdd6c8","#9aa893"], far:"#7c8a7a", mid:"#4d5a4c", near:"#222a22",
+   coords:"E 106° · N 26°", time:"☀ 晌午", deco:"mist",
+   quest:"黔山探秘", objs:[["踏入贵州地界",1],["寻访黄果树瀑布",0],["登临梵净金顶",0],["夜访千户苗寨",0]],
+   wp:["云台揽胜",240], discover:"贵州·黔境",
+   guide:"欢迎来到黔境——这里九成是山，云雾深处，藏着整片江湖。"},
+
+  {cn:"黄果树", py:"HUANGGUOSHU", sub:"亚洲第一大瀑布 · 水帘洞天", seal:"瀑<br>布",
+   tint:"70,150,170", sky:["#c4d6da","#7f9aa0"], far:"#6f8488", mid:"#3f5a5e", near:"#1c2c2e",
+   coords:"E 105° · N 25°", time:"☀ 午后", deco:"water",
+   quest:"水帘探瀑", objs:[["抵达黄果树景区",1],["穿越水帘洞",0],["寻找最佳观瀑点",0]],
+   wp:["瀑前观景台",120], discover:"黄果树瀑布",
+   guide:"前方水声如雷——这便是宽 101 米的黄果树瀑布，可从洞中反看水帘。"},
+
+  {cn:"梵净山", py:"FANJINGSHAN", sub:"武陵之巅 · 云海金顶", seal:"登<br>顶",
+   tint:"120,140,90", sky:["#dde2d6","#b3bda9"], far:"#92a08a", mid:"#5d6c50", near:"#2c3624",
+   coords:"E 108° · N 27°", time:"⛅ 清晨", deco:"mist",
+   quest:"问道金顶", objs:[["攀登 8888 级石阶",1],["穿越云海",0],["登临红云金顶",0]],
+   wp:["蘑菇石",380], discover:"梵净山·金顶",
+   guide:"海拔 2572 米，云在脚下走。红云金顶上，一寺分两殿，需攀铁索而上。"},
+
+  {cn:"小七孔", py:"XIAOQIKONG", sub:"荔波 · 地球绿宝石", seal:"碧<br>水",
+   tint:"40,170,140", sky:["#cfe2d8","#8fbfa8"], far:"#6ba089", mid:"#3a7a62", near:"#16382c",
+   coords:"E 107° · N 25°", time:"☀ 上午", deco:"water",
+   quest:"绿宝石之径", objs:[["步入小七孔古桥",1],["卧龙潭泛舟",0],["探访 68 级跌水瀑布",0]],
+   wp:["卧龙潭",90], discover:"荔波·小七孔",
+   guide:"水绿得不真实——荔波小七孔，喀斯特森林里的一串翡翠水链。"},
+
+  {cn:"千户苗寨", py:"MIAO VILLAGE", sub:"西江 · 万家灯火", seal:"夜<br>寨",
+   tint:"180,110,60", sky:["#3a2e33","#1c161a"], far:"#574048", mid:"#3a2c30", near:"#181014",
+   coords:"E 108° · N 26°", time:"🌙 入夜", deco:"lanterns",
+   quest:"灯火苗疆", objs:[["登上观景台",1],["俯瞰万家灯火",0],["赴一场长桌宴",0]],
+   wp:["西江观景台",60], discover:"西江千户苗寨",
+   guide:"夜幕落下，一千多户吊脚楼次第亮灯——这是苗疆最盛的星河。"},
+];
+
+let cur=0, dayNight="day", hudHidden=false;
+
+/* ---- build region buttons ---- */
+const regBtns=$("#regBtns");
+REGIONS.forEach((r,i)=>{
+  const b=document.createElement("button");
+  b.textContent=r.cn.replace(/\s/g,"");
+  b.onclick=()=>goRegion(i);
+  if(i===0)b.classList.add("active");
+  regBtns.appendChild(b);
+});
+
+/* ---- lanterns ---- */
+const lanWrap=$("#lanterns");
+for(let i=0;i<70;i++){
+  const d=document.createElement("div"); d.className="lantern";
+  d.style.left=(8+Math.random()*84)+"%";
+  d.style.top=(55+Math.random()*35)+"%";
+  d.style.animationDelay=(Math.random()*2.4)+"s";
+  lanWrap.appendChild(d);
+}
+
+/* ---- bars / live HUD ---- */
+let hp=1,qi=.9,st=1;
+function setBar(id,v,nid,max,unit){ $(id).style.transform=`scaleX(${v})`; if(nid)$(nid).textContent=`${Math.round(v*max)}/${max}`; }
+function refreshBars(){ setBar("#hp",hp,"#hpn",980); setBar("#qi",qi,"#qin",600); setBar("#st",st,"#stn",100); }
+refreshBars();
+setInterval(()=>{ // regen
+  st=Math.min(1,st+0.04); qi=Math.min(1,qi+0.01); refreshBars();
+},400);
+
+/* ---- waypoint distance ticking ---- */
+setInterval(()=>{
+  const el=$("#wpDist"); let d=parseInt(el.textContent); if(isNaN(d))return;
+  d=d>20?d-Math.ceil(Math.random()*6):REGIONS[cur].wp[1];
+  el.textContent=d+" m";
+},700);
+
+/* ---- narrator typing ---- */
+let typeTimer=null;
+function typeLine(txt,name){
+  if(name)$("#talkName").textContent=name;
+  const el=$("#talkLine"); el.textContent=""; clearInterval(typeTimer); let i=0;
+  typeTimer=setInterval(()=>{ el.textContent=txt.slice(0,++i); if(i>=txt.length)clearInterval(typeTimer); },42);
+}
+
+/* ---- toasts ---- */
+function toast(label,text,cls=""){
+  const t=document.createElement("div"); t.className="toast "+cls;
+  t.innerHTML=`<span class="lab">${label}</span>${text}`;
+  $("#toasts").appendChild(t);
+  setTimeout(()=>t.remove(),4200);
+}
+
+/* ---- quest objectives ---- */
+function renderQuest(r){
+  $("#qMain").textContent=r.quest;
+  const box=$("#qObjs"); box.innerHTML="";
+  r.objs.forEach((o,idx)=>{
+    const done=o[1]===1;
+    const cur=!done && (idx===r.objs.findIndex(x=>x[1]===0));
+    const d=document.createElement("div"); d.className="obj"+(done?" done":"");
+    d.innerHTML=`<span class="box${cur?" cur":""}"></span><span>${o[0]}</span>`;
+    box.appendChild(d);
+  });
+}
+
+/* ---- apply scene look for a region ---- */
+function applyRegion(r){
+  const root=document.documentElement.style;
+  root.setProperty("--tint",r.tint);
+  root.setProperty("--sky-top",r.sky[0]); root.setProperty("--sky-bot",r.sky[1]);
+  root.setProperty("--mtn-far",r.far); root.setProperty("--mtn-mid",r.mid); root.setProperty("--mtn-near",r.near);
+  $("#rcn").textContent=r.cn; $("#rpy").textContent=r.py;
+  $("#coords").textContent=r.coords; $("#daytime").textContent=r.time;
+  $("#wpName").textContent="前往 · "+r.wp[0]; $("#wpDist").textContent=r.wp[1]+" m";
+  $("#discName").textContent=r.discover;
+  $("#waterfall").style.opacity=(r.deco==="water"&&r===REGIONS[1])?1:0;
+  $("#wmist").style.opacity=(r===REGIONS[1])?1:0;
+  $("#water").style.opacity=(r.deco==="water")?1:0;
+  $("#lanterns").style.opacity=(r.deco==="lanterns")?1:0;
+  $("#sun").style.opacity=(r.deco==="lanterns")?0:1;
+  renderQuest(r);
+}
+
+/* ---- THE TRANSITION (游戏界面转场) ---- */
+function playTransition(r,full){
+  const T=$("#trans"); T.classList.add("run");
+  const ink=$("#inkA"), line=$("#enterLine"), seal=$("#seal");
+  const cn=$("#tCn"), py=$("#tPy"), sub=$("#tSub");
+  $("#hud").classList.remove("show");
+  cn.textContent=r.cn; py.textContent=r.py; sub.textContent=r.sub; seal.innerHTML=r.seal;
+
+  // reset
+  ink.style.transition="none"; ink.style.clipPath="circle(0% at 50% 55%)";
+  cn.style.transition=py.style.transition=sub.style.transition="none";
+  cn.style.opacity=0; cn.style.filter="blur(14px)"; cn.style.letterSpacing="40px";
+  py.style.opacity=0; sub.style.opacity=0;
+  seal.style.transition="none"; seal.style.transform="scale(0) rotate(-18deg)";
+  line.style.transition="none"; line.style.transform="scaleX(0)";
+  void ink.offsetWidth;
+
+  // 1) ink floods in
+  ink.style.transition="clip-path .55s cubic-bezier(.7,0,.3,1)";
+  ink.style.clipPath="circle(150% at 50% 55%)";
+
+  setTimeout(()=>{ // 2) apply new look behind the black, then reveal title
+    applyRegion(r);
+    line.style.transition="transform .5s ease"; line.style.transform="scaleX(1)";
+    cn.style.transition="opacity .8s ease, filter .8s ease, letter-spacing 1s cubic-bezier(.2,.8,.2,1)";
+    cn.style.opacity=1; cn.style.filter="blur(0)"; cn.style.letterSpacing="6px";
+    setTimeout(()=>{ py.style.transition="opacity .6s"; py.style.opacity=1; },260);
+    setTimeout(()=>{ sub.style.transition="opacity .6s"; sub.style.opacity=1; },420);
+    setTimeout(()=>{ // seal stamp
+      seal.style.transition="transform .35s cubic-bezier(.34,1.56,.64,1)";
+      seal.style.transform="scale(1) rotate(-8deg)";
+    },560);
+  },560);
+
+  const hold = full?2100:1500;
+  setTimeout(()=>{ // 3) ink recedes -> world revealed
+    ink.style.transition="clip-path .6s cubic-bezier(.7,0,.3,1)";
+    ink.style.clipPath="circle(0% at 50% 55%)";
+    cn.style.opacity=0; py.style.opacity=0; sub.style.opacity=0;
+    seal.style.opacity=0; line.style.opacity=0;
+    setTimeout(()=>{
+      T.classList.remove("run");
+      line.style.opacity=1; seal.style.opacity=1;
+      $("#hud").classList.add("show");
+      showDiscover(r);
+      typeLine(r.guide,"向导 · 阿黔");
+      toast("LOCATION","已抵达 · "+r.discover);
+    },620);
+  },560+hold);
+}
+
+/* ---- discover banner anim ---- */
+function showDiscover(r){
+  const d=$("#discover"); const ln=d.querySelector(".ln");
+  d.style.transition="none"; d.style.opacity=0; d.style.transform="translateX(-50%) translateY(10px)"; ln.style.width="0";
+  void d.offsetWidth;
+  d.style.transition="opacity .6s, transform .6s";
+  d.style.opacity=1; d.style.transform="translateX(-50%) translateY(0)";
+  ln.style.transition="width 1s .2s ease"; ln.style.width="220px";
+  setTimeout(()=>{ d.style.opacity=0; },2600);
+}
+
+/* ---- region switch (light wipe + transition) ---- */
+function goRegion(i){
+  cur=i;
+  $$(".regs button").forEach((b,bi)=>b.classList.toggle("active",bi===i));
+  const w=$("#wipe");
+  w.style.transition="none"; w.style.transform="translateX(-100%)"; void w.offsetWidth;
+  w.style.transition="transform .9s ease"; w.style.transform="translateX(100%)";
+  playTransition(REGIONS[i], i===0);
+  toast("REGION","进入新区域");
+}
+
+/* ---- enter game ---- */
+function enterGame(){
+  const s=$("#start");
+  s.style.transition="opacity .6s"; s.style.opacity=0;
+  setTimeout(()=>{ s.style.display="none"; playTransition(REGIONS[0],true); },500);
+}
+$("#enterBtn").onclick=enterGame;
+
+/* ---- keyboard interactions ---- */
+const PROMPTS=["探索此地","查看景观","采集 · 灵草","记录 · 坐标","攀谈 · 路人"];
+document.addEventListener("keydown",e=>{
+  if($("#start").style.display!=="none"){ if(e.code==="Space"){e.preventDefault();enterGame();} return; }
+  if(e.code==="Space"){ e.preventDefault(); useSkill(1,"轻功·踏云","施展轻功，踏云而行"); st=Math.max(0,st-.3); refreshBars(); }
+  if(e.key==="f"||e.key==="F"){ interact(); }
+  if(e.key==="q"||e.key==="Q"){ useSkill(0,"疾风步","疾风步 · 身形如电"); }
+  if(e.key==="e"||e.key==="E"){ useSkill(2,"天眼","开天眼 · 远眺群山"); showDiscover(REGIONS[cur]); }
+  if(e.key==="r"||e.key==="R"){ useSkill(3,"归乡符","归乡符 · 传送回城"); }
+});
+let pT;
+function interact(){
+  const p=$("#prompt"); $("#promptTxt").textContent=PROMPTS[Math.floor(Math.random()*PROMPTS.length)];
+  p.classList.add("on"); clearTimeout(pT); pT=setTimeout(()=>p.classList.remove("on"),1400);
+  const gains=["阅历 +50","见闻 +1","好感度 +10","灵石 +3"];
+  toast("REWARD","获得 · "+gains[Math.floor(Math.random()*gains.length)]);
+  // tick a quest objective
+  const r=REGIONS[cur]; const idx=r.objs.findIndex(o=>o[1]===0);
+  if(idx>-1){ r.objs[idx][1]=1; renderQuest(r);
+    if(idx>0)toast("QUEST","目标完成 · "+r.objs[idx][0],"ach");
+    if(r.objs.every(o=>o[1]===1))setTimeout(()=>toast("ACHIEVEMENT","成就解锁 · "+r.quest+"·圆满","ach"),400);
+  }
+}
+function useSkill(slot,name,line){
+  const cd=$("#cd"+slot); cd.style.transition="none"; cd.style.transform="scaleY(1)"; void cd.offsetWidth;
+  cd.style.transition="transform 1.6s linear"; cd.style.transform="scaleY(0)";
+  typeLine(line,"侠客 · 无名");
+}
+// pointer = interact too
+$("#stage").addEventListener("click",e=>{ if($("#start").style.display==="none" && !e.target.closest("#panel")) interact(); });
+
+/* ---- panel controls ---- */
+$("#panelToggle").onclick=()=>{ const p=$("#panel"); p.classList.toggle("hide"); $("#panelToggle").textContent=p.classList.contains("hide")?"面板 ▴":"面板 ▾"; };
+$("#dayBtn").onclick=()=>{
+  dayNight=dayNight==="day"?"night":"day";
+  const sc=$("#scene");
+  sc.style.filter=dayNight==="night"?"brightness(.5) saturate(.7) hue-rotate(-12deg)":"none";
+  $("#daytime").textContent=dayNight==="night"?"🌙 夜":REGIONS[cur].time;
+  toast("TIME",dayNight==="night"?"入夜":"破晓");
+};
+$("#hudBtn").onclick=()=>{
+  hudHidden=!hudHidden; $("#hud").style.opacity=hudHidden?0:1;
+  $("#hudBtn").textContent=hudHidden?"显示 HUD":"隐藏 HUD";
+};
+$("#replayBtn").onclick=()=>playTransition(REGIONS[cur],true);
+$("#resetBg").onclick=()=>{ $("#userVid").style.display="none"; $("#userImg").style.display="none";
+  $$("#far,#mid,#near,.mist,#sun").forEach(el=>el.style.display=""); toast("BG","已切回水墨场景"); };
+
+function showUserMedia(){ $$("#far,#mid,#near,.mist,#sun,#waterfall,#wmist,#water,#lanterns").forEach(el=>el.style.display="none"); }
+$("#fileVid").onchange=e=>{ const f=e.target.files[0]; if(!f)return; const v=$("#userVid");
+  v.src=URL.createObjectURL(f); v.style.display="block"; v.play(); $("#userImg").style.display="none"; showUserMedia();
+  toast("BG","已载入视频背景 · 录屏即可叠加 HUD"); };
+$("#fileImg").onchange=e=>{ const f=e.target.files[0]; if(!f)return; const im=$("#userImg");
+  im.src=URL.createObjectURL(f); im.style.display="block"; $("#userVid").style.display="none"; showUserMedia();
+  toast("BG","已载入图片背景"); };
+
+/* ---- floating motes (always-on ambient motion) ---- */
+const pWrap=$("#particles");
+for(let i=0;i<46;i++){
+  const m=document.createElement("div"); m.className="mote";
+  const sz=1.5+Math.random()*3;
+  m.style.width=sz+"px"; m.style.height=sz+"px";
+  m.style.left=(Math.random()*100)+"%";
+  m.style.bottom=(-10-Math.random()*30)+"px";
+  const dur=9+Math.random()*14;
+  m.style.animationDuration=dur+"s";
+  m.style.animationDelay=(-Math.random()*dur)+"s";
+  m.style.setProperty("--dx",(Math.random()*120-60)+"px");
+  m.style.opacity=.4+Math.random()*.5;
+  pWrap.appendChild(m);
+}
+
+/* init look (behind start screen) */
+applyRegion(REGIONS[0]);
+</script>
+
+<!-- ============ P0: Three.js 可走动世界层（叠在 HUD 之下，HUD/转场全部保留） ============ -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const canvas = document.getElementById('world');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x16241c);
+scene.fog = new THREE.Fog(0x16241c, 28, 135);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 700);
+let composer = null;
+function resize(){ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); if(composer) composer.setSize(innerWidth,innerHeight); }
+addEventListener('resize', resize); resize();
+
+// ---- 灯光 ----
+scene.add(new THREE.HemisphereLight(0xbfe6c8, 0x16241c, 0.75));
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.6);
+sun.position.set(-34,52,22); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048);
+const sc = sun.shadow.camera; sc.near=1; sc.far=170; sc.left=-80; sc.right=80; sc.top=80; sc.bottom=-80;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x9fd6e6, 0.9); rim.position.set(22,12,-26); scene.add(rim); // 背光描边
+
+// ---- 地面 + 网格 ----
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(700,700),
+  new THREE.MeshStandardMaterial({ color:0x223a2a, roughness:1 }));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(700, 140, 0x3f7d5a, 0x1a2a20);
+grid.material.opacity = 0.32; grid.material.transparent = true; grid.position.y = 0.02; scene.add(grid);
+
+// ---- 远山（水墨剪影锥体）----
+const peakMat = new THREE.MeshStandardMaterial({ color:0x14201a, roughness:1 });
+for(let i=0;i<28;i++){
+  const a=(i/28)*Math.PI*2, r=125+(i%3)*32, h=32+(i%5)*18;
+  const peak = new THREE.Mesh(new THREE.ConeGeometry(15+(i%4)*7, h, 5), peakMat);
+  peak.position.set(Math.cos(a)*r, h/2-2, Math.sin(a)*r); scene.add(peak);
+}
+
+// ---- 近处岩石（InstancedMesh）----
+const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),
+  new THREE.MeshStandardMaterial({ color:0x2c3a30, roughness:1, flatShading:true }), 64);
+{ const m=new THREE.Matrix4(), q=new THREE.Quaternion(), v=new THREE.Vector3(), s=new THREE.Vector3();
+  for(let i=0;i<64;i++){ const a=Math.random()*6.28, r=12+Math.random()*64;
+    v.set(Math.cos(a)*r, 0.2+Math.random()*0.6, Math.sin(a)*r);
+    q.setFromEuler(new THREE.Euler(Math.random(),Math.random()*6.28,Math.random()));
+    const k=0.6+Math.random()*1.9; s.set(k,k*0.8,k); m.compose(v,q,s); rocks.setMatrixAt(i,m); } }
+rocks.castShadow = rocks.receiveShadow = true; scene.add(rocks);
+
+// ---- 竹林 ----
+const bambooMat = new THREE.MeshStandardMaterial({ color:0x4a7a4e, roughness:.85 });
+for(let i=0;i<46;i++){ const a=Math.random()*6.28, r=14+Math.random()*56, h=6+Math.random()*9;
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,h,6), bambooMat);
+  b.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r); b.castShadow=true; scene.add(b); }
+
+// ---- 玩家（真 3D 角色 + 骨骼动画；占位用 three.js 官方 Soldier，后续可换 Meshy/Mixamo）----
+const player = new THREE.Group();
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.6,0.72,26),
+  new THREE.MeshBasicMaterial({ color:0xf3d489, transparent:true, opacity:.45, side:THREE.DoubleSide }));
+ring.rotation.x = -Math.PI/2; ring.position.y = 0.03; player.add(ring);
+scene.add(player);
+
+let mixer=null, actions={}, curW={idle:1,walk:0,run:0}, modelReady=false, charModel=null;
+new GLTFLoader().load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r169/examples/models/gltf/Soldier.glb', (gltf)=>{
+  const model = gltf.scene;
+  model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.frustumCulled=false; } });
+  let box=new THREE.Box3().setFromObject(model); const size=new THREE.Vector3(); box.getSize(size);
+  model.scale.setScalar(1.8/size.y);                       // 缩放到约 1.8 高
+  box=new THREE.Box3().setFromObject(model); model.position.y -= box.min.y;   // 脚踩地面
+  model.rotation.y = Math.PI;                              // 朝 +Z（若背向再翻 PI）
+  player.add(model); charModel = model;
+  mixer = new THREE.AnimationMixer(model);
+  const byName={}; gltf.animations.forEach(c=>byName[c.name.toLowerCase()]=c);
+  const pick=(...ns)=>{ for(const n of ns){ if(byName[n]) return byName[n]; } return gltf.animations[0]; };
+  actions.idle = mixer.clipAction(pick('idle'));
+  actions.walk = mixer.clipAction(pick('walk','walking'));
+  actions.run  = mixer.clipAction(pick('run','running'));
+  for(const k in actions){ const a=actions[k]; a.enabled=true; a.setEffectiveTimeScale(1); a.setEffectiveWeight(0); a.play(); }
+  actions.idle.setEffectiveWeight(1);
+  modelReady=true;
+  console.log('[P1] character loaded · clips:', gltf.animations.map(c=>c.name).join(', '));
+}, undefined, (err)=>{ console.warn('[P1] character load failed', err); });
+
+// ---- 输入 ----
+const keys = {};
+const MOVE = ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'];
+addEventListener('keydown', e=>{ if(MOVE.includes(e.code)){ keys[e.code]=true; if(e.code!=='Space') e.preventDefault(); } });
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+// 右键拖拽转视角 + 滚轮缩放（左键留给原有的"探索"交互）
+let dragging=false, lx=0, ly=0, camYaw=0, camPitch=0.45, camDist=8.5;
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+canvas.addEventListener('mousedown', e=>{ if(e.button===2){ dragging=true; lx=e.clientX; ly=e.clientY; } });
+addEventListener('mouseup', ()=>dragging=false);
+addEventListener('mousemove', e=>{ if(!dragging) return;
+  camYaw -= (e.clientX-lx)*0.005; camPitch=Math.min(1.2,Math.max(0.08,camPitch+(e.clientY-ly)*0.005)); lx=e.clientX; ly=e.clientY; });
+canvas.addEventListener('wheel', e=>{ camDist=Math.min(16,Math.max(4,camDist+e.deltaY*0.01)); e.preventDefault(); }, {passive:false});
+
+// ---- 控制器 ----
+const vel = new THREE.Vector3();
+let vy=0, grounded=true, facing=0, walkT=0;
+const RUN_SPEED=7, WALK_SPEED=2.6, ACC=12, G=24, JUMP=9.5;
+const youArrow = document.querySelector('.you');
+const _f = new THREE.Vector3(), _r = new THREE.Vector3(), _w = new THREE.Vector3();
+const _tgt = new THREE.Vector3(), _off = new THREE.Vector3(), _goal = new THREE.Vector3();
+
+function tick(dt){
+  _f.set(-Math.sin(camYaw),0,-Math.cos(camYaw));      // 前
+  _r.set(-_f.z,0,_f.x);                                // 右
+  _w.set(0,0,0);
+  if(keys.KeyW||keys.ArrowUp) _w.add(_f);
+  if(keys.KeyS||keys.ArrowDown) _w.sub(_f);
+  if(keys.KeyD||keys.ArrowRight) _w.add(_r);
+  if(keys.KeyA||keys.ArrowLeft) _w.sub(_r);
+  const moving = _w.lengthSq()>0;
+  const spd = (keys.ShiftLeft||keys.ShiftRight) ? WALK_SPEED : RUN_SPEED;
+  if(moving) _w.normalize().multiplyScalar(spd);
+  vel.x += (_w.x-vel.x)*Math.min(1,ACC*dt);
+  vel.z += (_w.z-vel.z)*Math.min(1,ACC*dt);
+  player.position.x += vel.x*dt; player.position.z += vel.z*dt;
+  if(keys.Space && grounded){ vy=JUMP; grounded=false; }
+  vy -= G*dt; player.position.y += vy*dt;
+  if(player.position.y<=0){ player.position.y=0; vy=0; grounded=true; }
+  if(moving) facing = Math.atan2(vel.x,vel.z);
+  let d = facing - player.rotation.y; while(d>Math.PI)d-=6.2832; while(d<-Math.PI)d+=6.2832;
+  player.rotation.y += d*Math.min(1,12*dt);
+  const sp = Math.hypot(vel.x,vel.z);
+  // ---- 骨骼动画混合（idle / walk / run by speed）----
+  if(mixer){
+    mixer.update(dt);
+    const t = Math.max(0, Math.min(1,(sp-0.2)/(RUN_SPEED-0.2)));
+    const tg = sp<0.2 ? {idle:1,walk:0,run:0} : {idle:0, walk:1-t, run:t};
+    const k = Math.min(1,10*dt);
+    for(const key in curW){ curW[key]+=(tg[key]-curW[key])*k; if(actions[key]) actions[key].setEffectiveWeight(curW[key]); }
+  }
+  // 相机跟随
+  _tgt.set(player.position.x, player.position.y+1.3, player.position.z);
+  _off.set(Math.sin(camYaw)*Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
+  _goal.copy(_tgt).add(_off);
+  camera.position.lerp(_goal, Math.min(1,8*dt));
+  camera.lookAt(_tgt);
+  if(youArrow) youArrow.style.transform = `translate(-50%,-50%) rotate(${player.rotation.y*180/Math.PI}deg)`;
+  // 技能 → 角色动作（程序化「突刺」，叠在骨骼动画上；正式武侠模型用 Mixamo 攻击 clip 即可换成真动画）
+  if(charModel){
+    if(attackT>0){ attackT-=dt; const p=Math.min(1,1-attackT/ATK_DUR), e=Math.sin(p*Math.PI);
+      charModel.position.z = e*0.5; charModel.rotation.x = -e*0.25; charModel.rotation.z = Math.sin(p*Math.PI*1.5)*0.35; }
+    else { const kk=Math.min(1,12*dt); charModel.position.z+=(0-charModel.position.z)*kk; charModel.rotation.x+=(0-charModel.rotation.x)*kk; charModel.rotation.z+=(0-charModel.rotation.z)*kk; }
+  }
+  updateGoal(dt);
+}
+
+camera.position.set(0,5.5,9.5); camera.lookAt(0,1.3,0);
+
+/* ============ P2: 后处理（bloom + 水墨 NPR + ACES）============ */
+const InkShader = {
+  uniforms:{ tDiffuse:{value:null}, uTime:{value:0}, uRes:{value:new THREE.Vector2(1,1)}, uInk:{value:1.0}, uFlash:{value:0.0} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uRes; uniform float uInk; uniform float uFlash; varying vec2 vUv;
+    float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+    void main(){
+      vec2 px=1.0/uRes; vec3 c=texture2D(tDiffuse,vUv).rgb;
+      float lx=luma(texture2D(tDiffuse,vUv+vec2(px.x,0.0)).rgb)-luma(texture2D(tDiffuse,vUv-vec2(px.x,0.0)).rgb);
+      float ly=luma(texture2D(tDiffuse,vUv+vec2(0.0,px.y)).rgb)-luma(texture2D(tDiffuse,vUv-vec2(0.0,px.y)).rgb);
+      float edge=clamp(sqrt(lx*lx+ly*ly)*2.4*uInk,0.0,1.0);
+      c=mix(c, c*vec3(0.16,0.20,0.18), edge);                         // 墨线压暗边缘
+      float g=luma(c); c=mix(c, vec3(g)*vec3(0.92,1.03,0.96), 0.22);  // 去饱和 + 墨绿
+      float v=smoothstep(1.2,0.35,distance(vUv,vec2(0.5))); c*=mix(0.72,1.0,v);  // 暗角
+      c+=hash(vUv*uRes+uTime)*0.05-0.025;                             // 颗粒
+      c=mix(c, vec3(1.0), uFlash);                                    // 命中闪白
+      gl_FragColor=vec4(c,1.0);
+    }`
+};
+composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.6, 0.5, 0.82)); // strength/radius/threshold
+const inkPass = new ShaderPass(InkShader);
+composer.addPass(inkPass);
+composer.addPass(new OutputPass());
+resize();
+
+/* ============ P3: 打击感（顿帧/震屏/闪白/慢动作）+ 技能 VFX ============ */
+let trauma=0, hitstopT=0, slowmoT=0, flash=0, attackT=0; const ATK_DUR=0.4;
+function juice(stop, shake, fl, slow){ hitstopT=Math.max(hitstopT,stop||0); trauma=Math.min(1,trauma+(shake||0)); flash=Math.max(flash,fl||0); if(slow) slowmoT=Math.max(slowmoT,slow); }
+const fxList=[];
+function spawnSlash(){
+  const dir=new THREE.Vector3(Math.sin(player.rotation.y),0,Math.cos(player.rotation.y));
+  const slash=new THREE.Mesh(new THREE.RingGeometry(0.8,1.45,28,1,-0.95,1.9),
+    new THREE.MeshBasicMaterial({ color:0xf3d489, transparent:true, opacity:.95, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false }));
+  slash.position.copy(player.position).add(dir.clone().multiplyScalar(1.0)); slash.position.y=1.2; slash.lookAt(camera.position);
+  scene.add(slash); fxList.push({o:slash,life:.3,max:.3,kind:'slash'});
+  const N=44, posA=new Float32Array(N*3), vels=[];
+  for(let i=0;i<N;i++){ posA[i*3]=player.position.x; posA[i*3+1]=1.1; posA[i*3+2]=player.position.z;
+    const a=Math.random()*6.28, sp=2+Math.random()*6; vels.push(new THREE.Vector3(Math.cos(a)*sp+dir.x*5,Math.random()*5,Math.sin(a)*sp+dir.z*5)); }
+  const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(posA,3));
+  const pts=new THREE.Points(pg, new THREE.PointsMaterial({ color:0xfff0c0, size:.17, transparent:true, opacity:1, blending:THREE.AdditiveBlending, depthWrite:false }));
+  scene.add(pts); fxList.push({o:pts,life:.6,max:.6,kind:'pts',vel:vels});
+  const blade=new THREE.Mesh(new THREE.PlaneGeometry(0.55,2.4),
+    new THREE.MeshBasicMaterial({ color:0xbff0d0, transparent:true, opacity:.9, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false }));
+  blade.position.copy(player.position).add(dir.clone().multiplyScalar(1.4)); blade.position.y=1.1;
+  blade.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  scene.add(blade); fxList.push({o:blade,life:.4,max:.4,kind:'blade',dir:dir.clone()});
+  attackT = ATK_DUR;                 // 触发角色「突刺」动作
+  juice(0.06, 0.85, 0.45, 0.0);
+}
+function updateFx(dt){
+  for(let i=fxList.length-1;i>=0;i--){ const f=fxList[i]; f.life-=dt; const t=1-f.life/f.max;
+    if(f.life<=0){ scene.remove(f.o); f.o.geometry.dispose(); f.o.material.dispose(); fxList.splice(i,1); continue; }
+    if(f.kind==='slash'){ const s=0.3+t*1.8; f.o.scale.set(s,s,s); f.o.material.opacity=.95*(1-t); f.o.rotation.z+=dt*7; }
+    else if(f.kind==='pts'){ const p=f.o.geometry.attributes.position; for(let j=0;j<f.vel.length;j++){ const v=f.vel[j]; v.y-=9*dt; p.array[j*3]+=v.x*dt; p.array[j*3+1]+=v.y*dt; p.array[j*3+2]+=v.z*dt; } p.needsUpdate=true; f.o.material.opacity=1-t; }
+    else if(f.kind==='blade'){ f.o.position.add(f.dir.clone().multiplyScalar(20*dt)); f.o.material.opacity=.9*(1-t); f.o.scale.y=1+t*1.6; }
+  }
+}
+// ---- 任务联动：3D 目标信标 → 走到即完成主线目标（连通"世界层"与"任务层"）----
+const goal = new THREE.Group();
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,9,12,1,true),
+  new THREE.MeshBasicMaterial({ color:0xf3d489, transparent:true, opacity:.45, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false }));
+beam.position.y=4.5; goal.add(beam);
+const goalRing = new THREE.Mesh(new THREE.RingGeometry(1.2,1.55,40),
+  new THREE.MeshBasicMaterial({ color:0xf3d489, transparent:true, opacity:.7, side:THREE.DoubleSide }));
+goalRing.rotation.x=-Math.PI/2; goalRing.position.y=0.05; goal.add(goalRing);
+scene.add(goal);
+function placeGoal(){ const a=Math.random()*6.28, r=10+Math.random()*16; goal.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); }
+placeGoal();
+let goalCD=0;
+const wpDistEl=document.getElementById('wpDist'), wpNameEl=document.getElementById('wpName');
+function updateGoal(dt){
+  goal.rotation.y += dt*0.7; const pl=1+Math.sin(performance.now()*0.003)*0.12; goalRing.scale.set(pl,pl,pl);
+  const dx=player.position.x-goal.position.x, dz=player.position.z-goal.position.z, dist=Math.hypot(dx,dz);
+  if(wpDistEl) wpDistEl.textContent=Math.round(dist)+' m';
+  if(wpNameEl) wpNameEl.textContent='前往 · 信标';
+  goalCD-=dt;
+  if(dist<2.6 && goalCD<=0){ goalCD=1.2;
+    try{ if(typeof window.interact==='function') window.interact(); }catch(e){}   // 调用原任务系统：完成下一个目标
+    juice(0,0.3,0.15,0); placeGoal();
+  }
+}
+const started=()=>document.getElementById('start').style.display==='none';
+addEventListener('keydown', e=>{ if((e.code==='KeyJ'||e.code==='KeyK') && !e.repeat && started()) spawnSlash(); });
+canvas.addEventListener('mousedown', e=>{ if(e.button===0 && started()) spawnSlash(); });
+
+let last = performance.now();
+function loop(now){
+  let raw=(now-last)/1000; last=now; if(raw>0.1) raw=0.1;
+  hitstopT-=raw; slowmoT-=raw;
+  const ts = hitstopT>0 ? 0.05 : (slowmoT>0 ? 0.4 : 1.0);   // 顿帧/慢动作
+  const dt = raw*ts;
+  tick(dt); updateFx(dt);
+  trauma=Math.max(0,trauma-raw*1.7); const shk=trauma*trauma*0.55;  // 屏幕震动
+  camera.position.x += (Math.random()*2-1)*shk; camera.position.y += (Math.random()*2-1)*shk;
+  flash=Math.max(0,flash-raw*3.2);
+  inkPass.uniforms.uFlash.value=flash; inkPass.uniforms.uTime.value=now*0.001; inkPass.uniforms.uRes.value.set(canvas.width,canvas.height);
+  composer.render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// 调试钩子（供验证用）
+window.__p0 = { THREE, scene, camera, player, keys, tick, spawnSlash, get mixer(){return mixer;}, get actions(){return actions;}, get curW(){return curW;}, get modelReady(){return modelReady;}, get fx(){return fxList;}, get composer(){return composer;} };
+console.log('[P2/P3] ready · WASD 移动(Shift 走) · 空格 跳 · 右键转视角 · J/左键 剑气斩');
+</script>
+</body>
+</html>

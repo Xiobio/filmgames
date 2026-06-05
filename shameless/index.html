@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>无耻之徒 · 用游戏的方式打开</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;500;600&family=Noto+Serif+SC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#d9b577; --gold-bright:#f0d49a; --ink:#0a0b0e; --paper:#ece6da;
+    --ui:'Oswald',"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --serif:'Noto Serif SC',"Songti SC",serif;
+    --body:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;overflow:hidden;color:var(--paper);font-family:var(--body);user-select:none}
+  #app{position:fixed;inset:0;overflow:hidden}
+
+  /* ============ 背景：视频/图片 + 视差 + 后处理 ============ */
+  .bgwrap{position:absolute;inset:-4%;transition:transform .25s ease-out;will-change:transform}
+  .bgmedia{position:absolute;inset:0;animation:kenburns 34s ease-in-out infinite alternate;will-change:transform}
+  @keyframes kenburns{0%{transform:scale(1.06)}100%{transform:scale(1.15)}}
+  .bgimg,.bgvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    background-size:cover;background-position:center;filter:contrast(1.05) saturate(.8) brightness(.82);
+    opacity:0;transition:opacity .9s ease}
+  .bgimg.on,.bgvid.on{opacity:1}
+  .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#161b20,#0c1115 45%,#211913);transition:opacity .6s}
+  .fallback span{font-family:var(--ui);font-size:13px;letter-spacing:.4em;color:#54606c;text-transform:uppercase}
+  .grade{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(130% 100% at 50% 32%,rgba(120,150,160,.08),transparent 56%),
+               linear-gradient(180deg,rgba(8,16,22,.34),rgba(20,10,4,.40))}
+  .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 260px 70px rgba(0,0,0,.92),inset 0 0 110px 12px rgba(0,0,0,.6)}
+  .grain{position:absolute;inset:-50%;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation:grain .55s steps(2) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}50%{transform:translate(-6%,4%)}100%{transform:translate(4%,-5%)}}
+  #fx{position:absolute;inset:0;pointer-events:none;z-index:2}
+  .bars::before,.bars::after{content:"";position:absolute;left:0;right:0;height:0;background:#000;z-index:4;transition:height .6s cubic-bezier(.7,0,.3,1)}
+  .bars::before{top:0}.bars::after{bottom:0}
+  body.cine .bars::before,body.cine .bars::after{height:9vh}
+
+  /* 黑场转场 */
+  #wipe{position:absolute;inset:0;background:#000;z-index:30;opacity:0;pointer-events:none;transition:opacity .4s ease}
+  #wipe.on{opacity:1}
+
+  /* ============ 屏幕 + 错峰入场 ============ */
+  .screen{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .5s ease}
+  .screen.active{opacity:1;pointer-events:auto}
+  .screen.enter .stg{opacity:0;animation:stg .9s cubic-bezier(.2,.7,.2,1) forwards;filter:blur(6px)}
+  .screen.enter .stg:nth-child(1){animation-delay:.05s}
+  .screen.enter .stg:nth-child(2){animation-delay:.16s}
+  .screen.enter .stg:nth-child(3){animation-delay:.27s}
+  .screen.enter .stg:nth-child(4){animation-delay:.38s}
+  .screen.enter .stg:nth-child(5){animation-delay:.49s}
+  @keyframes stg{to{opacity:1;transform:translateY(0);filter:blur(0)}}
+  .stg{transform:translateY(22px)}
+
+  /* ============ 首屏 ============ */
+  #start{align-items:center;justify-content:center;text-align:center;cursor:pointer}
+  .kicker{font-family:var(--ui);font-weight:500;font-size:12px;letter-spacing:.62em;color:var(--gold);
+    text-transform:uppercase;margin-bottom:26px;padding-left:.62em}
+  .title-en{font-family:'Anton',var(--ui);font-size:clamp(64px,13vw,184px);line-height:.86;letter-spacing:.03em;
+    color:#f3eee4;text-shadow:0 10px 60px rgba(0,0,0,.7)}
+  .title-zh{font-family:var(--serif);font-weight:900;font-size:clamp(28px,6vw,62px);letter-spacing:.32em;
+    color:var(--gold-bright);margin-top:18px;padding-left:.32em;text-shadow:0 4px 30px rgba(217,181,119,.25)}
+  .rule{width:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:30px auto 0;
+    animation:rule 1.2s 1s ease forwards}
+  @keyframes rule{to{width:220px}}
+  .tagline{margin-top:22px;color:#b6bcc4;font-size:15px;letter-spacing:.2em;font-family:var(--ui);font-weight:300}
+  .press{margin-top:58px;font-family:var(--ui);font-size:13px;letter-spacing:.4em;color:var(--gold);text-transform:uppercase;
+    animation:pulse 2s 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* ============ 顶栏 ============ */
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:12;display:flex;align-items:center;justify-content:space-between;
+    padding:18px 30px;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent);display:none}
+  .topbar .grp{display:flex;align-items:center;gap:14px}
+  .crumb{font-family:var(--ui);font-size:12px;letter-spacing:.2em;color:#cdd3da;text-transform:uppercase}
+  .crumb b{color:var(--gold)}
+  .ibtn{font-family:var(--ui);font-size:11px;letter-spacing:.14em;color:#cdd3da;background:rgba(255,255,255,.04);
+    border:1px solid rgba(217,181,119,.28);border-radius:2px;padding:8px 15px;cursor:pointer;text-transform:uppercase;transition:.18s}
+  .ibtn:hover{border-color:var(--gold);color:var(--gold-bright);background:rgba(217,181,119,.08)}
+  .ibtn.on{background:var(--gold);color:#0c0c0c;border-color:var(--gold)}
+
+  /* ============ HUD ============ */
+  .hud{position:absolute;top:66px;right:30px;z-index:11;width:198px;display:none;
+    background:rgba(8,10,12,.5);backdrop-filter:blur(6px);border:1px solid rgba(217,181,119,.18);border-radius:4px;padding:14px 16px}
+  .hud .nm{font-family:var(--serif);font-weight:700;font-size:15px;color:var(--gold-bright);margin-bottom:11px;letter-spacing:.04em}
+  .hud .stat{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-family:var(--ui);font-size:11px;letter-spacing:.06em;color:#aeb6bf}
+  .hud .stat .k{flex:0 0 42px;text-transform:uppercase}
+  .hud .bar{flex:1;height:5px;border-radius:0;background:rgba(255,255,255,.1);overflow:hidden}
+  .hud .bar i{display:block;height:100%;transition:width .6s ease}
+
+  /* ============ 菜单 ============ */
+  #menu{padding:96px 7vw 44px;overflow-y:auto}
+  .tabs{display:flex;gap:4px;margin-bottom:34px;border-bottom:1px solid rgba(255,255,255,.1)}
+  .tab{font-family:var(--ui);font-weight:400;font-size:15px;letter-spacing:.14em;color:#8b939d;background:none;border:none;
+    padding:13px 24px;cursor:pointer;position:relative;text-transform:uppercase;transition:.2s}
+  .tab:hover{color:#c4cbd3}
+  .tab.active{color:var(--gold-bright)}
+  .tab.active::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--gold)}
+  .pane{display:none}.pane.active{display:block;animation:fadeup .55s ease}
+  @keyframes fadeup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .grid{display:grid;gap:18px}
+  .cgrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .sgrid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .card{position:relative;border-radius:3px;overflow:hidden;cursor:pointer;background:#0e1216;
+    border:1px solid rgba(255,255,255,.06);transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
+  .card:hover{transform:translateY(-6px);border-color:rgba(217,181,119,.5);box-shadow:0 20px 50px -22px rgba(217,181,119,.6)}
+  .card.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 18px 50px -20px var(--gold)}
+  .card .ph{position:absolute;inset:0;background-size:cover;background-position:center top;filter:contrast(1.04) saturate(.86);display:none}
+  .card .fb{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#1c2228,#0e1216);color:#5d6671;font-family:var(--serif);font-size:15px}
+  .c-card{aspect-ratio:3/4}
+  .c-card .meta{position:absolute;left:0;right:0;bottom:0;padding:14px 13px 12px;background:linear-gradient(transparent,rgba(0,0,0,.94) 70%);z-index:2}
+  .c-card h4{font-family:var(--serif);font-weight:700;font-size:17px;letter-spacing:.04em}
+  .c-card .en{font-family:var(--ui);font-size:10px;letter-spacing:.2em;color:#9aa3ad;text-transform:uppercase;margin-top:1px}
+  .c-card p{font-size:11px;color:#b3bac2;margin-top:7px;line-height:1.55}
+  .c-card .pick{position:absolute;top:9px;right:9px;z-index:3;font-family:var(--ui);font-size:10px;letter-spacing:.12em;
+    color:#0c0c0c;background:var(--gold);border-radius:2px;padding:3px 9px;text-transform:uppercase;opacity:0;transition:.2s}
+  .c-card.sel .pick{opacity:1}
+  .s-card{aspect-ratio:16/10}
+  .s-card .meta{position:absolute;left:0;right:0;bottom:0;padding:18px;background:linear-gradient(transparent,rgba(0,0,0,.92));z-index:2}
+  .s-card .ch{font-family:var(--ui);font-size:10px;letter-spacing:.24em;color:var(--gold);text-transform:uppercase}
+  .s-card h4{font-family:var(--serif);font-weight:700;font-size:22px;margin-top:3px}
+  .s-card .go{display:inline-block;margin-top:9px;font-family:var(--ui);font-size:12px;letter-spacing:.18em;color:var(--gold-bright);text-transform:uppercase}
+  .hint{margin:0 2px 22px;color:#838b94;font-size:13px;font-family:var(--ui);letter-spacing:.04em}
+  .about{max-width:700px;color:#c4cad1;line-height:1.95;font-size:15px}.about b{color:var(--gold-bright)}
+
+  /* ============ 章节卡 ============ */
+  .chapter{position:absolute;inset:0;z-index:13;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.6);opacity:0;pointer-events:none;text-align:center}
+  .chapter.show{animation:chap 2.8s ease forwards}
+  @keyframes chap{0%{opacity:0}16%{opacity:1}80%{opacity:1}100%{opacity:0}}
+  .chapter .cn{font-family:var(--ui);font-size:13px;letter-spacing:.56em;color:var(--gold);text-transform:uppercase;margin-bottom:16px;
+    opacity:0;animation:cin .9s .15s forwards}
+  .chapter .ct{font-family:var(--serif);font-weight:900;font-size:clamp(36px,6.5vw,76px);letter-spacing:.04em;opacity:0;animation:cin 1s .35s forwards}
+  .chapter .ce{font-family:var(--ui);font-size:13px;letter-spacing:.34em;color:#9aa3ad;margin-top:14px;text-transform:uppercase;opacity:0;animation:cin 1s .55s forwards}
+  @keyframes cin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ============ 任务弹条 ============ */
+  .quest{position:absolute;top:84px;left:30px;z-index:11;width:min(340px,72vw);transform:translateX(-130%);transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+  .quest.show{transform:translateX(0)}
+  .qcard{background:rgba(8,10,12,.72);backdrop-filter:blur(5px);border-left:2px solid var(--gold);padding:12px 15px;margin-bottom:8px}
+  .qcard .qt{font-family:var(--ui);font-size:11px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;margin-bottom:4px}
+  .qcard .qx{font-size:13px;color:#dfe3e8;line-height:1.55}
+  .qcard.side{border-left-color:#84a6c4}.qcard.side .qt{color:#a4c2dc}
+
+  /* ============ 热点 ============ */
+  .hotspot{position:absolute;z-index:9;width:34px;height:34px;cursor:pointer;transform:translate(-50%,-50%)}
+  .hotspot .core{position:absolute;inset:13px;border-radius:50%;background:var(--gold-bright);box-shadow:0 0 12px var(--gold)}
+  .hotspot .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--gold);animation:ring 2.4s ease-out infinite}
+  .hotspot:hover{transform:translate(-50%,-50%) scale(1.2)}
+  .hotspot.seen .core{background:#6f7681;box-shadow:none}.hotspot.seen .ring{display:none}
+  .hotspot .lbl{position:absolute;left:50%;top:130%;transform:translateX(-50%);white-space:nowrap;font-family:var(--ui);
+    font-size:11px;letter-spacing:.14em;color:var(--gold-bright);text-transform:uppercase;opacity:0;transition:.2s;text-shadow:0 1px 6px #000}
+  .hotspot:hover .lbl{opacity:1}
+  @keyframes ring{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+
+  /* ============ 对话框 ============ */
+  .dialog{position:absolute;left:50%;bottom:12vh;transform:translateX(-50%) translateY(26px);z-index:14;width:min(780px,90vw);
+    background:linear-gradient(180deg,rgba(10,12,14,.9),rgba(8,9,11,.92));backdrop-filter:blur(10px);
+    border:1px solid rgba(217,181,119,.3);border-radius:4px;display:flex;gap:18px;padding:18px 22px;
+    opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;box-shadow:0 30px 80px -30px #000}
+  .dialog::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold)}
+  .dialog.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .portrait{flex:0 0 70px;height:70px;border-radius:2px;background:#1a2026;overflow:hidden;position:relative;border:1px solid rgba(217,181,119,.45)}
+  .portrait .pim{position:absolute;inset:0;background-size:cover;background-position:center top;display:none}
+  .portrait .pini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Anton';font-size:26px;color:var(--gold)}
+  .dbody{flex:1;min-width:0}
+  .dwho{font-family:var(--serif);font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--gold-bright);margin-bottom:7px}
+  .dtx{font-size:16px;line-height:1.78;color:var(--paper);min-height:2.7em}
+  .dcont{position:absolute;right:18px;bottom:13px;color:var(--gold);font-size:13px;animation:pulse 1.3s infinite;opacity:0}
+  .dcont.show{opacity:1}
+  .dclose{position:absolute;top:9px;right:15px;color:#838b94;cursor:pointer;font-size:17px}.dclose:hover{color:var(--gold)}
+  .choices{margin-top:13px;display:flex;flex-direction:column;gap:8px}
+  .choice{font-family:var(--body);text-align:left;font-size:14px;color:#dfe3e8;background:rgba(255,255,255,.04);
+    border:1px solid rgba(217,181,119,.28);border-radius:2px;padding:10px 15px;cursor:pointer;transition:.15s}
+  .choice:hover{background:rgba(217,181,119,.12);border-color:var(--gold);color:#fff}
+  .choice b{font-family:var(--ui);color:var(--gold);margin-right:9px}
+  .progress{position:absolute;bottom:9vh;left:50%;transform:translateX(-50%);z-index:8;font-family:var(--ui);font-size:11px;letter-spacing:.28em;color:#9aa3ad;text-transform:uppercase}
+
+  /* ============ 成就 ============ */
+  .ach{position:absolute;right:30px;bottom:30px;z-index:15;width:min(330px,76vw);display:flex;gap:13px;align-items:center;
+    background:linear-gradient(135deg,rgba(44,35,17,.96),rgba(18,14,7,.96));border:1px solid var(--gold);border-radius:4px;padding:15px 17px;
+    transform:translateX(140%);transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+  .ach.show{transform:translateX(0)}
+  .ach .ico{font-size:30px}
+  .ach .at{font-family:var(--ui);font-size:11px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+  .ach .an{font-family:var(--serif);font-weight:700;font-size:16px;margin-top:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bgwrap" id="bgwrap"><div class="bgmedia">
+    <div class="fallback" id="fallback"><span id="fblabel">SOUTH SIDE</span></div>
+    <div class="bgimg" id="bgimg"></div>
+    <video class="bgvid" id="bgvid" muted loop playsinline preload="auto"></video>
+  </div></div>
+  <div class="grade"></div><div class="vignette"></div><div class="grain"></div>
+  <canvas id="fx"></canvas>
+  <div class="bars"></div>
+  <div id="wipe"></div>
+
+  <div class="topbar" id="topbar">
+    <div class="grp"><button class="ibtn" id="backbtn">← 返回</button><span class="crumb" id="crumb"></span></div>
+    <div class="grp"><button class="ibtn on" id="barsbtn">影院黑边</button><button class="ibtn" id="soundbtn">环境音 ○</button></div>
+  </div>
+
+  <div class="hud" id="hud"><div class="nm" id="hudName"></div><div id="hudStats"></div></div>
+
+  <div class="chapter" id="chapter"><div class="cn" id="chapNo"></div><div class="ct" id="chapTitle"></div><div class="ce" id="chapEn"></div></div>
+  <div class="quest" id="quest"></div>
+  <div class="ach" id="ach"><div class="ico">🏆</div><div><div class="at">成就解锁</div><div class="an" id="achName"></div></div></div>
+
+  <section class="screen" id="start">
+    <div class="kicker stg">FilmGames · 用游戏的方式打开</div>
+    <h1 class="title-en stg" id="titleEn">SHAMELESS</h1>
+    <div class="title-zh stg" id="titleZh">无耻之徒</div>
+    <div class="rule"></div>
+    <p class="tagline stg" id="tagline">用游戏的方式，走进南区</p>
+    <p class="press stg">▶ 按任意键 / 点击开始</p>
+  </section>
+
+  <section class="screen" id="menu">
+    <div class="tabs stg">
+      <button class="tab active" data-pane="chars">① 选择角色</button>
+      <button class="tab" data-pane="scenes">② 选择场景</button>
+      <button class="tab" data-pane="about">关于</button>
+    </div>
+    <div class="pane active" id="pane-chars">
+      <p class="hint" id="charhint">选一个角色作为你的视角（影响 HUD 状态与部分对话口吻）</p>
+      <div class="grid cgrid" id="charGrid"></div>
+    </div>
+    <div class="pane" id="pane-scenes">
+      <p class="hint">选一个场景走进去。每个场景有发光热点，点击触发剧情碎片；找齐全部解锁成就。</p>
+      <div class="grid sgrid" id="sceneGrid"></div>
+    </div>
+    <div class="pane" id="pane-about">
+      <div class="about">
+        <p><b>「用游戏的方式打开影视剧」</b>互动体验原型 —— 真实剧照套上<b>游戏 UI</b>（开始界面、角色选择、章节卡、任务、RPG 对话框、HUD、成就），<b>定格电影感</b>带你走进剧的世界。</p>
+        <p style="margin-top:16px">v2：<b>循环视频背景层 + 电影级黑场转场 + 浮尘粒子 + 鼠标视差 + 专业字体</b>。视频位可一键替换为你自己剪的剧集片段。</p>
+        <p style="margin-top:16px;color:#838b94;font-size:13px">※ 剧照仅为原型评估用途；正式发布需处理版权，建议走"风格神似"。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="scene">
+    <div class="progress" id="sceneProgress"></div>
+    <div class="dialog" id="dialog">
+      <span class="dclose" id="dlgClose">✕</span>
+      <div class="portrait" id="dlgPort"><div class="pim" id="dlgPim"></div><div class="pini" id="dlgPini"></div></div>
+      <div class="dbody"><div class="dwho" id="dlgWho"></div><div class="dtx" id="dlgTx"></div><div class="choices" id="dlgChoices"></div></div>
+      <span class="dcont" id="dlgCont">▼</span>
+    </div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const DEFAULT_DATA={title:{en:"SHAMELESS",zh:"无耻之徒",tagline:"用游戏的方式，走进南区"},hero:null,characters:[],scenes:[]};
+const D=(window.FILMGAME_DATA&&window.FILMGAME_DATA.characters&&window.FILMGAME_DATA.characters.length)?window.FILMGAME_DATA:DEFAULT_DATA;
+if(!D.title)D.title=DEFAULT_DATA.title;
+const charByKey={};D.characters.forEach(c=>charByKey[c.key]=c);
+const media=x=> x==null?{}: (typeof x==='string'?{img:x}:x);
+
+/* ===== 背景（视频/图片 + 视差） ===== */
+const bgimg=document.getElementById('bgimg'),bgvid=document.getElementById('bgvid'),fb=document.getElementById('fallback'),fblabel=document.getElementById('fblabel');
+function setBackdrop(m,label){
+  m=media(m);fblabel.textContent=label||'SOUTH SIDE';
+  if(m.video){
+    bgvid.onloadeddata=()=>{bgvid.classList.add('on');bgimg.classList.remove('on');fb.style.opacity='0';};
+    bgvid.onerror=()=>{bgvid.classList.remove('on'); loadImg(m.img,label);};
+    if(m.img){bgvid.poster=m.img;} bgvid.src=m.video; bgvid.play&&bgvid.play().catch(()=>{});
+  } else { bgvid.classList.remove('on'); bgvid.removeAttribute('src'); loadImg(m.img,label); }
+}
+function loadImg(url,label){
+  if(!url){bgimg.classList.remove('on');fb.style.opacity='1';return;}
+  const p=new Image();
+  p.onload=()=>{bgimg.style.backgroundImage=`url("${url}")`;bgimg.classList.add('on');fb.style.opacity='0';};
+  p.onerror=()=>{bgimg.classList.remove('on');fb.style.opacity='1';};p.src=url;
+}
+// 视差
+const bgwrap=document.getElementById('bgwrap');
+let px=0,py=0,tx=0,ty=0;
+window.addEventListener('mousemove',e=>{tx=(e.clientX/innerWidth-.5);ty=(e.clientY/innerHeight-.5);});
+(function loop(){px+=(tx-px)*.06;py+=(ty-py)*.06;bgwrap.style.transform=`translate(${px*-22}px,${py*-16}px)`;requestAnimationFrame(loop);})();
+
+/* ===== 浮尘粒子 ===== */
+const cv=document.getElementById('fx'),cx=cv.getContext('2d');let motes=[];
+function sizefx(){cv.width=innerWidth;cv.height=innerHeight;motes=[];for(let i=0;i<48;i++)motes.push({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.8+.4,s:Math.random()*.3+.05,a:Math.random()*.5+.1,sw:Math.random()*0.6+0.2,ph:Math.random()*6.28});}
+sizefx();addEventListener('resize',sizefx);
+(function fxloop(t){cx.clearRect(0,0,cv.width,cv.height);for(const m of motes){m.y-=m.s;m.x+=Math.sin((t/1000)+m.ph)*m.sw*0.3;if(m.y<-5){m.y=cv.height+5;m.x=Math.random()*cv.width;}cx.beginPath();cx.arc(m.x,m.y,m.r,0,6.28);cx.fillStyle=`rgba(230,210,170,${m.a})`;cx.fill();}requestAnimationFrame(fxloop);})(0);
+
+/* ===== 屏幕 + 黑场转场 ===== */
+const wipe=document.getElementById('wipe');
+const screens=['start','menu','scene'];
+function setScreen(id){screens.forEach(s=>document.getElementById(s).classList.toggle('active',s===id));
+  const el=document.getElementById(id);el.classList.remove('enter');void el.offsetWidth;el.classList.add('enter');
+  document.getElementById('topbar').style.display=(id==='start')?'none':'flex';
+  document.getElementById('hud').style.display=(id==='scene'&&chosenChar)?'block':'none';}
+function transition(cb){wipe.classList.add('on');setTimeout(()=>{cb&&cb();wipe.classList.remove('on');},410);}
+let chosenChar=null,curScene=null;
+
+/* ===== 首屏 ===== */
+document.getElementById('titleEn').textContent=D.title.en;
+document.getElementById('titleZh').textContent=D.title.zh;
+document.getElementById('tagline').textContent=D.title.tagline;
+setBackdrop(D.hero,'SOUTH SIDE · CHICAGO');
+function boot(){if(document.getElementById('start').classList.contains('active'))transition(goMenu);}
+document.getElementById('start').addEventListener('click',boot);
+window.addEventListener('keydown',e=>{if(document.getElementById('start').classList.contains('active')){e.preventDefault();boot();}});
+
+/* ===== 菜单 ===== */
+function goMenu(){setScreen('menu');document.getElementById('crumb').innerHTML=chosenChar?`视角：<b>${chosenChar.zh}</b>`:'主菜单';setBackdrop(D.hero,'SOUTH SIDE · CHICAGO');}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('pane-'+t.dataset.pane).classList.add('active');});
+const statColors=['#d9b577','#84a6c4','#c4849a','#84c49a'];
+function renderHud(c){document.getElementById('hudName').textContent=c.zh+(c.en?` · ${c.en}`:'');const w=document.getElementById('hudStats');w.innerHTML='';const s=c.stats||{};let i=0;for(const k in s){w.insertAdjacentHTML('beforeend',`<div class="stat"><span class="k">${k}</span><span class="bar"><i style="width:${s[k]}%;background:${statColors[i++%4]}"></i></span></div>`);}}
+const charGrid=document.getElementById('charGrid');
+D.characters.forEach(c=>{const el=document.createElement('div');el.className='card c-card';
+  el.innerHTML=`<div class="pick">视角</div><div class="fb">${c.zh}</div><div class="ph"></div><div class="meta"><h4>${c.zh}</h4><div class="en">${c.en||''}</div><p>${c.blurb||''}</p></div>`;
+  if(c.img){const ph=el.querySelector('.ph');const im=new Image();im.onload=()=>{ph.style.backgroundImage=`url("${c.img}")`;ph.style.display='block';el.querySelector('.fb').style.display='none';};im.src=c.img;}
+  el.onclick=()=>{document.querySelectorAll('.c-card').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');chosenChar=c;
+    document.getElementById('charhint').innerHTML=`已选视角：<b style="color:var(--gold-bright)">${c.zh}</b> —— 切到「② 选择场景」走进南区`;
+    document.getElementById('crumb').innerHTML=`视角：<b>${c.zh}</b>`;renderHud(c);};
+  charGrid.appendChild(el);});
+const sceneGrid=document.getElementById('sceneGrid');
+D.scenes.forEach(s=>{const el=document.createElement('div');el.className='card s-card';
+  el.innerHTML=`<div class="fb">${s.name}</div><div class="ph"></div><div class="meta"><div class="ch">${s.chapter||''}</div><h4>${s.name}</h4><span class="go">进入 ▸</span></div>`;
+  const pm=media(s.img||s.poster||(s.video?null:s.img));const pimg=(typeof s.img==='string'?s.img:(s.poster||null));
+  if(pimg){const ph=el.querySelector('.ph');const im=new Image();im.onload=()=>{ph.style.backgroundImage=`url("${pimg}")`;ph.style.display='block';el.querySelector('.fb').style.display='none';};im.src=pimg;}
+  el.onclick=()=>transition(()=>enterScene(s));sceneGrid.appendChild(el);});
+
+/* ===== 场景 ===== */
+const sceneEl=document.getElementById('scene'),dialog=document.getElementById('dialog');let typer=null,achTimer=null;
+function enterScene(s){curScene=s;setScreen('scene');
+  document.getElementById('crumb').innerHTML=(chosenChar?`<b>${chosenChar.zh}</b> · `:'')+s.name;
+  setBackdrop({img:(typeof s.img==='string'?s.img:s.poster),video:s.video},s.name);
+  if(chosenChar)renderHud(chosenChar);
+  document.getElementById('chapNo').textContent=s.chapter||'';document.getElementById('chapTitle').textContent=s.name;document.getElementById('chapEn').textContent=s.en||'';
+  const chap=document.getElementById('chapter');chap.classList.remove('show');void chap.offsetWidth;chap.classList.add('show');
+  const quest=document.getElementById('quest');quest.classList.remove('show');quest.innerHTML='';
+  if(s.quest){quest.innerHTML=`<div class="qcard"><div class="qt">◈ 主线任务</div><div class="qx">${s.quest.main||''}</div></div>`+(s.quest.side?`<div class="qcard side"><div class="qt">◇ 支线</div><div class="qx">${s.quest.side}</div></div>`:'');
+    setTimeout(()=>quest.classList.add('show'),2400);setTimeout(()=>quest.classList.remove('show'),8400);}
+  sceneEl.querySelectorAll('.hotspot').forEach(h=>h.remove());
+  let found=0;const total=s.hotspots.length;const prog=document.getElementById('sceneProgress');prog.textContent=`已发现 0 / ${total}`;
+  s.hotspots.forEach(h=>{const dot=document.createElement('div');dot.className='hotspot';dot.style.left=h.x+'%';dot.style.top=h.y+'%';
+    dot.innerHTML=`<span class="ring"></span><span class="core"></span><span class="lbl">${h.label}</span>`;
+    dot.onclick=()=>{if(!dot.classList.contains('seen')){dot.classList.add('seen');found++;prog.textContent=`已发现 ${found} / ${total}`;if(found===total)setTimeout(()=>unlockAch(s.achievement||'全部发现'),600);}openDialog(h);};
+    sceneEl.appendChild(dot);});
+  hideDialog();}
+function openDialog(h){const who=h.who?charByKey[h.who]:null;
+  document.getElementById('dlgWho').textContent=who?who.zh:(h.label||'旁白');
+  const pim=document.getElementById('dlgPim'),pini=document.getElementById('dlgPini');
+  pini.textContent=who?(who.en?who.en[0]:who.zh[0]):'“';pim.style.display='none';
+  if(who&&who.img){const im=new Image();im.onload=()=>{pim.style.backgroundImage=`url("${who.img}")`;pim.style.display='block';};im.src=who.img;}
+  document.getElementById('dlgChoices').innerHTML='';document.getElementById('dlgCont').classList.remove('show');dialog.classList.add('show');
+  typeText(h.text,()=>{if(h.choices&&h.choices.length){const w=document.getElementById('dlgChoices');h.choices.forEach((c,i)=>{const b=document.createElement('button');b.className='choice';b.innerHTML=`<b>${String.fromCharCode(65+i)}.</b>${c.label}`;b.onclick=()=>{w.innerHTML='';typeText(c.text,()=>document.getElementById('dlgCont').classList.add('show'));};w.appendChild(b);});}else{document.getElementById('dlgCont').classList.add('show');}});}
+function typeText(text,done){const tx=document.getElementById('dlgTx');tx.textContent='';if(typer)clearInterval(typer);let i=0;typer=setInterval(()=>{tx.textContent=text.slice(0,++i);if(i>=text.length){clearInterval(typer);done&&done();}},17);}
+function hideDialog(){dialog.classList.remove('show');if(typer)clearInterval(typer);}
+document.getElementById('dlgClose').onclick=hideDialog;
+function unlockAch(name){document.getElementById('achName').textContent=name;const a=document.getElementById('ach');a.classList.add('show');if(achTimer)clearTimeout(achTimer);achTimer=setTimeout(()=>a.classList.remove('show'),4400);}
+
+/* ===== 顶栏 ===== */
+document.getElementById('backbtn').onclick=()=>transition(()=>{hideDialog();goMenu();});
+document.body.classList.add('cine');
+document.getElementById('barsbtn').onclick=function(){document.body.classList.toggle('cine');this.classList.toggle('on');};
+let audioCtx=null,noiseNode=null;
+document.getElementById('soundbtn').onclick=function(){if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){this.textContent='环境音 ✕';return;}}
+  if(noiseNode){noiseNode.stop();noiseNode=null;this.textContent='环境音 ○';this.classList.remove('on');return;}
+  const n=2*audioCtx.sampleRate,buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*.5;
+  noiseNode=audioCtx.createBufferSource();noiseNode.buffer=buf;noiseNode.loop=true;const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=560;const g=audioCtx.createGain();g.gain.value=.045;
+  noiseNode.connect(lp);lp.connect(g);g.connect(audioCtx.destination);if(audioCtx.state==='suspended')audioCtx.resume();noiseNode.start();this.textContent='环境音 ●';this.classList.add('on');};
+
+setScreen('start');
+</script>
+</body>
+</html>

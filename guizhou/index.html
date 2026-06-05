@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用游戏的方式打开贵州 · 武侠开放世界 UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Oxanium:wght@400;500;600;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#10130f;
+  --paper:#e9e0c8;
+  --jade:#9fd6a8;
+  --jade-deep:#3f7d5a;
+  --gold:#d8b15a;
+  --gold-bright:#f3d489;
+  --cinnabar:#c8442f;
+  --tint: 63,125,90;          /* region tint, rgb */
+  --sky-top:#cdd6c8;
+  --sky-bot:#9aa893;
+  --mtn-far:#7c8a7a;
+  --mtn-mid:#4d5a4c;
+  --mtn-near:#222a22;
+  --hud: #e9e0c8;
+  --serif:"ZCOOL XiaoWei","Songti SC","STSong","Noto Serif SC",serif;
+  --brush:"Ma Shan Zheng","STKaiti","KaiTi","Kaiti SC",serif;
+  --tech:"Oxanium","Rajdhani",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:#05070a;
+  color:var(--hud);
+  font-family:var(--serif);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+#stage{
+  position:fixed; inset:0;
+  width:100vw; height:100vh;
+  overflow:hidden;
+  cursor:crosshair;
+}
+
+/* ---------------- SCENE (ink-wash karst world) ---------------- */
+#scene{position:absolute; inset:0; transition:filter 1.4s ease, opacity 1.4s ease;}
+#sky{position:absolute; inset:0; background:linear-gradient(180deg,var(--sky-top),var(--sky-bot));}
+#sun{
+  position:absolute; left:50%; top:18%; width:170px; height:170px; transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, rgba(255,247,225,.95), rgba(248,224,170,.35) 55%, transparent 70%);
+  filter:blur(1px); transition:all 1.2s ease;
+}
+.svg-mtn{position:absolute; inset:0; width:100%; height:100%}
+#far path{fill:var(--mtn-far); opacity:.55; filter:blur(2px)}
+#mid path{fill:var(--mtn-mid); opacity:.8; filter:blur(.5px)}
+#near path{fill:var(--mtn-near)}
+.mist{
+  position:absolute; left:-20%; width:140%; height:46%;
+  background:radial-gradient(ellipse 55% 100% at 50% 100%, rgba(245,245,235,.5), transparent 72%);
+  pointer-events:none; will-change:transform;
+}
+#mist1{top:42%; animation:drift 26s linear infinite}
+#mist2{top:58%; opacity:.7; animation:drift 38s linear infinite reverse}
+#mist3{top:30%; opacity:.4; animation:drift 50s linear infinite}
+@keyframes drift{0%{transform:translateX(-6%)}50%{transform:translateX(6%)}100%{transform:translateX(-6%)}}
+
+/* region-specific decorations */
+#waterfall{position:absolute; left:46%; top:34%; width:70px; height:40%; opacity:0; transition:opacity 1s; pointer-events:none}
+#waterfall span{position:absolute; top:0; width:3px; height:100%; background:linear-gradient(180deg,transparent,rgba(255,255,255,.85),rgba(255,255,255,.4)); animation:fall 1.1s linear infinite}
+#waterfall span:nth-child(1){left:6px;animation-delay:0s}
+#waterfall span:nth-child(2){left:16px;animation-delay:.2s}
+#waterfall span:nth-child(3){left:26px;animation-delay:.45s}
+#waterfall span:nth-child(4){left:38px;animation-delay:.1s}
+#waterfall span:nth-child(5){left:50px;animation-delay:.55s}
+#waterfall span:nth-child(6){left:60px;animation-delay:.3s}
+@keyframes fall{0%{transform:translateY(-30%);opacity:.2}40%{opacity:.95}100%{transform:translateY(60%);opacity:0}}
+#wmist{position:absolute; left:42%; top:68%; width:90px; height:60px; border-radius:50%; background:radial-gradient(rgba(255,255,255,.8),transparent 70%); filter:blur(8px); opacity:0; transition:opacity 1s; animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.25);opacity:.8}}
+
+#water{position:absolute; left:0; bottom:0; width:100%; height:14%; opacity:0; transition:opacity 1s;
+  background:linear-gradient(180deg, rgba(120,200,180,.05), rgba(80,170,150,.35));
+  pointer-events:none}
+#water::after{content:""; position:absolute; inset:0;
+  background:repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,.18) 14px 16px);
+  animation:shimmer 6s linear infinite; mix-blend-mode:screen}
+@keyframes shimmer{to{transform:translateX(30px)}}
+
+#lanterns{position:absolute; inset:0; opacity:0; transition:opacity 1s; pointer-events:none}
+.lantern{position:absolute; width:5px; height:5px; border-radius:50%;
+  background:radial-gradient(circle,#ffd27a,#e8943a 60%,transparent);
+  box-shadow:0 0 8px 2px rgba(255,180,90,.7); animation:twinkle 2.4s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.4;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+
+/* user media background */
+#userVid,#userImg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none}
+
+/* region color tint */
+#tint{position:absolute; inset:0; background:rgba(var(--tint),.16); mix-blend-mode:multiply; transition:background 1.2s ease; pointer-events:none}
+#grade{position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 55%, rgba(0,0,0,.45)),
+    linear-gradient(180deg, rgba(0,0,0,.18), transparent 30%, transparent 70%, rgba(0,0,0,.5));
+}
+/* film grain + scanline atmosphere */
+#grain{position:absolute; inset:0; opacity:.05; pointer-events:none; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");}
+#scan{position:absolute; inset:0; pointer-events:none; opacity:.06;
+  background:repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 3px)}
+#particles{position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:5}
+.mote{position:absolute; bottom:-12px; border-radius:50%;
+  background:rgba(255,247,225,.8); box-shadow:0 0 7px rgba(255,238,196,.7);
+  animation:floatUp linear infinite; will-change:transform,opacity}
+@keyframes floatUp{
+  0%{transform:translate(0,0) scale(1); opacity:0}
+  12%{opacity:.85}
+  88%{opacity:.85}
+  100%{transform:translate(var(--dx,0),-112vh) scale(.7); opacity:0}
+}
+
+/* ---------------- HUD ---------------- */
+#hud{position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .6s}
+#hud.show{opacity:1}
+.frame{
+  background:linear-gradient(180deg, rgba(16,19,15,.78), rgba(16,19,15,.66));
+  border:1px solid rgba(216,177,90,.45);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 6px 24px rgba(0,0,0,.45), inset 0 0 24px rgba(0,0,0,.4);
+}
+.corner{position:relative}
+.corner::before,.corner::after{content:""; position:absolute; width:12px; height:12px; border:2px solid var(--gold)}
+.corner::before{top:-2px; left:-2px; border-right:0; border-bottom:0}
+.corner::after{bottom:-2px; right:-2px; border-left:0; border-top:0}
+
+/* top-left: hero panel */
+.hud-tl{position:absolute; top:22px; left:24px; width:296px; padding:13px 15px 14px; opacity:0; animation:slideL .7s .2s both}
+.hero-row{display:flex; align-items:center; gap:12px}
+.avatar{width:54px; height:54px; flex:none; border-radius:50%; border:2px solid var(--gold);
+  background:radial-gradient(circle at 50% 35%, #4a5a4a, #1a221a);
+  position:relative; overflow:hidden; box-shadow:0 0 12px rgba(216,177,90,.35)}
+.avatar svg{position:absolute; left:50%; bottom:-2px; width:38px; transform:translateX(-50%)}
+.hero-meta{flex:1; min-width:0}
+.hero-name{font-family:var(--brush); font-size:24px; line-height:1; color:var(--paper); letter-spacing:1px}
+.hero-title{font-size:11px; color:var(--gold-bright); letter-spacing:3px; margin-top:4px; font-family:var(--tech)}
+.bars{margin-top:11px; display:flex; flex-direction:column; gap:7px}
+.bar{display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:1px}
+.bar .lab{width:26px; color:var(--paper); opacity:.85; font-family:var(--serif)}
+.track{flex:1; height:8px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12); position:relative; overflow:hidden}
+.fill{position:absolute; inset:0; transform-origin:left; transition:transform .35s ease}
+.fill.hp{background:linear-gradient(90deg,#c8442f,#e8795f)}
+.fill.qi{background:linear-gradient(90deg,#3f7d5a,#9fd6a8)}
+.fill.st{background:linear-gradient(90deg,#b78a2e,#f3d489)}
+.bar .num{width:46px; text-align:right; font-family:var(--tech); color:var(--paper); opacity:.8; font-size:10px}
+
+/* top-right: region + minimap */
+.hud-tr{position:absolute; top:22px; right:24px; width:230px; opacity:0; animation:slideR .7s .25s both}
+.region-tag{display:flex; align-items:center; justify-content:flex-end; gap:8px}
+.region-tag .cn{font-family:var(--brush); font-size:26px; color:var(--paper); text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.region-tag .py{font-family:var(--tech); font-size:11px; letter-spacing:3px; color:var(--gold-bright); writing-mode:vertical-rl; text-orientation:mixed; opacity:.9}
+.minimap{margin-top:12px; width:230px; height:160px; padding:8px; position:relative}
+.radar{position:absolute; inset:8px; border-radius:6px; overflow:hidden;
+  background:radial-gradient(circle at 50% 50%, rgba(63,125,90,.28), rgba(10,14,10,.85));
+}
+.radar .ring{position:absolute; inset:0; border-radius:50%; border:1px solid rgba(216,177,90,.25); margin:auto;}
+.radar .ring.r1{width:130px;height:130px}
+.radar .ring.r2{width:84px;height:84px}
+.radar .ring.r3{width:40px;height:40px}
+.sweep{position:absolute; left:50%; top:50%; width:50%; height:2px; transform-origin:left center;
+  background:linear-gradient(90deg,rgba(159,214,168,.9),transparent); animation:sweep 3.4s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.you{position:absolute; left:50%; top:50%; width:8px; height:8px; transform:translate(-50%,-50%) rotate(0); }
+.you svg{width:100%; height:100%; fill:var(--gold-bright)}
+.blip{position:absolute; width:6px; height:6px; border-radius:50%; background:var(--cinnabar); box-shadow:0 0 6px var(--cinnabar); transform:translate(-50%,-50%)}
+.blip.q{background:var(--gold-bright); box-shadow:0 0 8px var(--gold-bright); animation:twinkle 1.6s infinite}
+.compass{position:absolute; top:10px; left:50%; transform:translateX(-50%); font-family:var(--tech); font-size:10px; letter-spacing:2px; color:var(--gold-bright); z-index:2}
+.coords{position:absolute; bottom:10px; left:14px; font-family:var(--tech); font-size:10px; color:var(--paper); opacity:.7; z-index:2}
+.daytime{position:absolute; bottom:10px; right:14px; font-family:var(--serif); font-size:11px; color:var(--gold-bright); z-index:2}
+
+/* quest scroll */
+.hud-quest{position:absolute; top:215px; right:24px; width:236px; padding:13px 15px; opacity:0; animation:slideR .7s .4s both}
+.quest-h{display:flex; align-items:center; gap:8px; border-bottom:1px solid rgba(216,177,90,.35); padding-bottom:7px; margin-bottom:9px}
+.quest-h .seal{width:18px;height:18px;display:grid;place-items:center;background:var(--cinnabar);color:#fff;font-family:var(--brush);font-size:12px;border-radius:3px}
+.quest-h .t{font-family:var(--serif); font-size:13px; letter-spacing:2px; color:var(--gold-bright)}
+.quest-main{font-family:var(--brush); font-size:19px; color:var(--paper); margin-bottom:9px}
+.obj{display:flex; gap:8px; font-size:12.5px; color:var(--paper); opacity:.92; margin:6px 0; line-height:1.35}
+.obj .box{width:13px;height:13px;flex:none;border:1.5px solid var(--gold);margin-top:2px;position:relative}
+.obj.done .box{background:var(--jade-deep)}
+.obj.done .box::after{content:"✓";position:absolute;inset:-3px 0 0;color:#fff;font-size:11px;text-align:center}
+.obj.done span{text-decoration:line-through; opacity:.55}
+.obj .box.cur{border-color:var(--gold-bright); box-shadow:0 0 8px var(--gold-bright); animation:twinkle 1.4s infinite}
+
+/* bottom skill bar */
+.hud-skills{position:absolute; bottom:26px; left:50%; transform:translateX(-50%); display:flex; gap:12px; opacity:0; animation:rise .7s .5s both}
+.slot{width:54px; height:54px; position:relative; display:grid; place-items:center}
+.slot .key{position:absolute; top:-9px; left:-6px; width:20px; height:20px; display:grid; place-items:center;
+  font-family:var(--tech); font-size:11px; color:var(--ink); background:var(--gold-bright); border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.slot .ic{font-family:var(--brush); font-size:22px; color:var(--paper)}
+.slot .nm{position:absolute; bottom:-18px; left:0; right:0; text-align:center; font-size:10px; letter-spacing:1px; color:var(--paper); opacity:.75}
+.slot .cd{position:absolute; inset:0; background:rgba(8,10,8,.78); transform-origin:bottom; transform:scaleY(0); pointer-events:none}
+
+/* dialogue / narrator bar */
+.hud-talk{position:absolute; left:50%; bottom:108px; transform:translateX(-50%); width:min(640px,80vw); padding:14px 22px; opacity:0; animation:rise .7s .55s both}
+.talk-name{font-family:var(--brush); font-size:18px; color:var(--gold-bright); margin-bottom:5px}
+.talk-line{font-size:15px; line-height:1.6; color:var(--paper); min-height:24px; letter-spacing:.5px}
+.talk-line::after{content:"▍"; color:var(--gold-bright); animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* center interaction prompt + waypoint */
+.prompt{position:absolute; left:50%; top:58%; transform:translate(-50%,-50%); display:flex; align-items:center; gap:10px;
+  padding:8px 16px 8px 8px; background:rgba(16,19,15,.6); border:1px solid rgba(216,177,90,.5); border-radius:40px;
+  opacity:0; transition:opacity .25s}
+.prompt.on{opacity:1}
+.prompt .k{width:30px;height:30px;display:grid;place-items:center;font-family:var(--tech);background:var(--paper);color:var(--ink);border-radius:6px;font-size:14px;box-shadow:0 2px 0 #b9ac84}
+.prompt .txt{font-size:14px; letter-spacing:1px}
+.waypoint{position:absolute; left:62%; top:40%; transform:translate(-50%,-50%); text-align:center; pointer-events:none}
+.waypoint .pin{font-size:22px; color:var(--gold-bright); filter:drop-shadow(0 0 6px rgba(216,177,90,.8)); animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.waypoint .d{font-family:var(--tech); font-size:12px; color:var(--paper); background:rgba(0,0,0,.4); padding:1px 7px; border-radius:10px; margin-top:2px; display:inline-block}
+.waypoint .nm{font-size:12px; color:var(--gold-bright); margin-top:3px; letter-spacing:1px}
+
+/* toast events */
+#toasts{position:absolute; left:24px; bottom:120px; display:flex; flex-direction:column-reverse; gap:8px}
+.toast{padding:9px 16px 9px 13px; background:linear-gradient(90deg,rgba(16,19,15,.85),rgba(16,19,15,.55)); border-left:3px solid var(--gold);
+  font-size:13px; letter-spacing:.5px; animation:toastIn .4s ease, toastOut .5s 3.6s forwards; box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.toast.ach{border-left-color:var(--cinnabar)}
+.toast .lab{font-family:var(--tech); font-size:10px; letter-spacing:3px; color:var(--gold-bright); display:block; margin-bottom:2px}
+.toast.ach .lab{color:var(--cinnabar)}
+@keyframes toastIn{from{opacity:0; transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0; transform:translateX(-24px)}}
+
+/* big "新地点发现" banner */
+#discover{position:absolute; left:50%; top:24%; transform:translateX(-50%); text-align:center; opacity:0; pointer-events:none}
+#discover .lab{font-family:var(--tech); letter-spacing:8px; font-size:13px; color:var(--gold-bright)}
+#discover .nm{font-family:var(--brush); font-size:46px; color:var(--paper); text-shadow:0 3px 14px rgba(0,0,0,.7); margin-top:4px}
+#discover .ln{width:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); margin:8px auto 0}
+
+/* fps flavor */
+.fps{position:absolute; top:8px; left:50%; transform:translateX(-50%); font-family:var(--tech); font-size:10px; color:rgba(233,224,200,.5); letter-spacing:1px}
+
+@keyframes slideL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+@keyframes slideR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translate(-50%,24px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ---------------- TRANSITION OVERLAY ---------------- */
+#trans{position:absolute; inset:0; z-index:40; pointer-events:none; opacity:0}
+#trans.run{opacity:1}
+#inkA{position:absolute; inset:0; background:#06080a; clip-path:circle(0% at 50% 55%);}
+#inkText{position:absolute; inset:0; display:grid; place-items:center; text-align:center}
+#inkText .cn{font-family:var(--brush); font-size:clamp(64px,12vw,150px); color:var(--paper); letter-spacing:6px; opacity:0; filter:blur(14px); text-shadow:0 6px 30px rgba(0,0,0,.8)}
+#inkText .py{font-family:var(--tech); font-size:clamp(13px,1.6vw,18px); letter-spacing:14px; color:var(--gold-bright); margin-top:14px; opacity:0}
+#inkText .sub{font-family:var(--serif); font-size:15px; letter-spacing:4px; color:rgba(233,224,200,.8); margin-top:18px; opacity:0}
+#seal{position:absolute; right:18%; top:30%; width:84px;height:84px; display:grid; place-items:center;
+  background:var(--cinnabar); color:#fff; font-family:var(--brush); font-size:34px; line-height:1.1; text-align:center;
+  border-radius:8px; transform:scale(0) rotate(-18deg); box-shadow:0 8px 30px rgba(0,0,0,.5); border:2px solid rgba(255,255,255,.25)}
+#enterLine{position:absolute; left:0; right:0; top:50%; height:2px; background:linear-gradient(90deg,transparent,var(--gold),transparent); transform:scaleX(0)}
+
+/* light wipe for region switch */
+#wipe{position:absolute; inset:0; z-index:38; pointer-events:none;
+  background:linear-gradient(90deg,transparent 40%, rgba(16,19,15,.92) 50%, transparent 60%);
+  transform:translateX(-100%)}
+
+/* ---------------- START SCREEN ---------------- */
+#start{position:absolute; inset:0; z-index:50; display:grid; place-items:center; text-align:center;
+  background:radial-gradient(120% 90% at 50% 30%, rgba(20,28,22,.66), rgba(6,8,10,.93) 78%);}
+#start .wrap{padding:0 24px}
+#start .kicker{font-family:var(--tech); letter-spacing:10px; font-size:12px; color:var(--gold-bright); margin-bottom:18px}
+#start .big{font-family:var(--brush); font-size:clamp(52px,11vw,120px); color:var(--paper); line-height:1; text-shadow:0 6px 34px rgba(0,0,0,.7)}
+#start .big em{color:var(--jade); font-style:normal; animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{text-shadow:0 0 0 rgba(159,214,168,0)}50%{text-shadow:0 0 26px rgba(159,214,168,.65)}}
+#start .desc{font-size:14px; line-height:1.8; color:rgba(233,224,200,.78); max-width:430px; margin:26px auto 0; letter-spacing:.5px}
+#start .cta{margin-top:34px; display:inline-flex; align-items:center; gap:12px; cursor:pointer; pointer-events:auto;
+  padding:14px 34px; background:linear-gradient(180deg,rgba(216,177,90,.16),rgba(216,177,90,.04));
+  border:1px solid var(--gold); color:var(--gold-bright); font-family:var(--serif); font-size:17px; letter-spacing:4px;
+  position:relative; transition:.25s; box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#start .cta:hover{background:rgba(216,177,90,.22); box-shadow:0 0 24px rgba(216,177,90,.35); transform:translateY(-1px)}
+@keyframes ctaPulse{0%,100%{box-shadow:0 0 0 1px rgba(0,0,0,.4)}50%{box-shadow:0 0 0 1px rgba(0,0,0,.4),0 0 28px rgba(216,177,90,.42)}}
+#start .cta{animation:ctaPulse 2.6s ease-in-out infinite}
+#start .cta .k{font-family:var(--tech); font-size:12px; background:var(--gold-bright); color:var(--ink); padding:3px 8px; border-radius:4px}
+#start .hint{margin-top:18px; font-family:var(--tech); font-size:11px; letter-spacing:2px; color:rgba(233,224,200,.4)}
+
+/* ---------------- CONTROL PANEL ---------------- */
+#panel{position:absolute; bottom:18px; right:18px; z-index:60; width:250px; pointer-events:auto;
+  font-family:var(--serif); transform:translateY(0); transition:transform .3s}
+#panel.hide{transform:translateY(calc(100% + 30px))}
+#panelToggle{position:absolute; right:0; top:-30px; pointer-events:auto; cursor:pointer;
+  font-family:var(--tech); font-size:11px; letter-spacing:2px; color:var(--gold-bright);
+  background:rgba(16,19,15,.8); border:1px solid rgba(216,177,90,.45); padding:5px 12px; border-radius:8px 8px 0 0}
+#panel .body{background:rgba(10,13,10,.95); border:1px solid rgba(216,177,90,.4); border-radius:10px; padding:13px}
+#panel h4{font-family:var(--tech); font-size:10px; letter-spacing:3px; color:var(--gold-bright); margin:2px 0 9px}
+.regs{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:11px}
+.regs button{font-family:var(--serif); font-size:12.5px; letter-spacing:1px; padding:7px 4px; cursor:pointer; color:var(--paper);
+  background:rgba(255,255,255,.04); border:1px solid rgba(216,177,90,.3); border-radius:6px; transition:.18s}
+.regs button:hover{background:rgba(216,177,90,.16); border-color:var(--gold)}
+.regs button.active{background:rgba(63,125,90,.3); border-color:var(--jade); color:#fff}
+.prow{display:flex; gap:6px; margin-bottom:8px}
+.prow button,.prow label{flex:1; font-family:var(--serif); font-size:12px; padding:8px 4px; text-align:center; cursor:pointer; color:var(--paper);
+  background:rgba(255,255,255,.04); border:1px solid rgba(216,177,90,.3); border-radius:6px; transition:.18s}
+.prow button:hover,.prow label:hover{background:rgba(216,177,90,.16)}
+#panel .tip{font-size:11px; line-height:1.5; color:rgba(233,224,200,.55); margin-top:4px; letter-spacing:.3px}
+input[type=file]{display:none}
+
+@media (max-width:720px){
+  .hud-tl{width:220px; top:14px; left:12px; transform:scale(.9); transform-origin:top left}
+  .hud-tr{width:170px; top:14px; right:12px}
+  .minimap{width:170px;height:120px}
+  .hud-quest{width:180px; top:165px; right:12px; transform:scale(.92); transform-origin:top right}
+  .hud-talk{bottom:150px; padding:11px 16px}
+  #panel{width:200px}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ===== SCENE ===== -->
+  <div id="scene">
+    <div id="sky"></div>
+    <div id="sun"></div>
+    <video id="userVid" loop muted playsinline></video>
+    <img id="userImg" alt="">
+    <svg id="far" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,560 C120,470 180,500 260,430 C340,500 420,400 520,470 C600,410 700,500 800,420 C900,500 1000,410 1100,470 C1200,400 1320,500 1420,430 C1500,490 1560,460 1600,500 L1600,900 L0,900 Z"/></svg>
+    <svg id="mid" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,640 C90,560 150,600 230,520 C300,440 360,560 460,540 C540,470 600,600 700,560 C800,500 880,620 980,560 C1070,490 1150,610 1250,560 C1340,500 1420,610 1520,560 C1560,540 1590,560 1600,560 L1600,900 L0,900 Z"/></svg>
+    <svg id="near" class="svg-mtn" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0,760 C70,680 110,700 170,650 C220,600 270,640 330,690 C380,640 420,560 500,600 C560,560 610,690 690,660 C760,630 810,560 900,610 C980,650 1030,720 1120,690 C1190,660 1240,580 1330,630 C1410,670 1470,700 1560,670 C1580,665 1592,670 1600,672 L1600,900 L0,900 Z"/></svg>
+    <div class="mist" id="mist3"></div>
+    <div class="mist" id="mist1"></div>
+    <div class="mist" id="mist2"></div>
+    <div id="waterfall"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div id="wmist"></div>
+    <div id="water"></div>
+    <div id="lanterns"></div>
+    <div id="tint"></div>
+    <div id="grade"></div>
+    <div id="particles"></div>
+    <div id="scan"></div>
+    <div id="grain"></div>
+  </div>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud">
+    <div class="fps">VER 1.0 · 60 FPS · 黔境 OPEN WORLD</div>
+
+    <!-- hero -->
+    <div class="hud-tl frame corner">
+      <div class="hero-row">
+        <div class="avatar">
+          <svg viewBox="0 0 40 40"><path fill="#cdd6c8" d="M20 8c4 0 6 3 6 7s-2 7-6 7-6-3-6-7 2-7 6-7zM7 40c0-8 6-12 13-12s13 4 13 12z"/></svg>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-name">侠客 · 无名</div>
+          <div class="hero-title">境界 · 后天九重</div>
+        </div>
+      </div>
+      <div class="bars">
+        <div class="bar"><span class="lab">气血</span><div class="track"><div class="fill hp" id="hp"></div></div><span class="num" id="hpn">980/980</span></div>
+        <div class="bar"><span class="lab">内力</span><div class="track"><div class="fill qi" id="qi"></div></div><span class="num" id="qin">540/600</span></div>
+        <div class="bar"><span class="lab">轻功</span><div class="track"><div class="fill st" id="st"></div></div><span class="num" id="stn">100/100</span></div>
+      </div>
+    </div>
+
+    <!-- region + minimap -->
+    <div class="hud-tr">
+      <div class="region-tag">
+        <span class="py" id="rpy">GUIZHOU</span>
+        <span class="cn" id="rcn">贵 州</span>
+      </div>
+      <div class="minimap frame corner">
+        <div class="radar">
+          <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+          <div class="sweep"></div>
+          <div class="you"><svg viewBox="0 0 10 10"><path d="M5 0L9 9L5 7L1 9Z"/></svg></div>
+          <div class="blip q" style="left:64%;top:34%"></div>
+          <div class="blip" style="left:38%;top:62%"></div>
+          <div class="blip" style="left:72%;top:70%"></div>
+          <div class="compass">北 N</div>
+          <div class="coords" id="coords">E 106° · N 26°</div>
+          <div class="daytime" id="daytime">☀ 晌午</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- quest -->
+    <div class="hud-quest frame corner">
+      <div class="quest-h"><span class="seal">务</span><span class="t">MAIN QUEST · 主线</span></div>
+      <div class="quest-main" id="qMain">黔山探秘</div>
+      <div id="qObjs"></div>
+    </div>
+
+    <!-- discover banner -->
+    <div id="discover"><div class="lab">NEW LOCATION DISCOVERED</div><div class="nm" id="discName">黄果树瀑布</div><div class="ln"></div></div>
+
+    <!-- waypoint + prompt -->
+    <div class="waypoint"><div class="pin">◈</div><div class="d" id="wpDist">240 m</div><div class="nm" id="wpName">前往观景台</div></div>
+    <div class="prompt" id="prompt"><span class="k">F</span><span class="txt" id="promptTxt">探索此地</span></div>
+
+    <!-- narrator -->
+    <div class="hud-talk frame corner">
+      <div class="talk-name" id="talkName">向导 · 阿黔</div>
+      <div class="talk-line" id="talkLine"></div>
+    </div>
+
+    <!-- skill bar -->
+    <div class="hud-skills">
+      <div class="slot frame"><span class="key">Q</span><span class="ic">疾</span><span class="nm">疾风步</span><div class="cd" id="cd0"></div></div>
+      <div class="slot frame"><span class="key">␣</span><span class="ic">轻</span><span class="nm">轻功·踏云</span><div class="cd" id="cd1"></div></div>
+      <div class="slot frame"><span class="key">E</span><span class="ic">观</span><span class="nm">天眼·望远</span><div class="cd" id="cd2"></div></div>
+      <div class="slot frame"><span class="key">R</span><span class="ic">归</span><span class="nm">归乡符</span><div class="cd" id="cd3"></div></div>
+    </div>
+
+    <div id="toasts"></div>
+  </div>
+
+  <!-- ===== TRANSITION ===== -->
+  <div id="trans">
+    <div id="inkA"></div>
+    <div id="enterLine"></div>
+    <div id="inkText"><div><div class="cn" id="tCn">贵 州</div><div class="py" id="tPy">GUI ZHOU</div><div class="sub" id="tSub">山地公园省 · 多彩贵州</div></div></div>
+    <div id="seal">入<br>黔</div>
+  </div>
+  <div id="wipe"></div>
+
+  <!-- ===== START ===== -->
+  <div id="start">
+    <div class="wrap">
+      <div class="kicker">OPEN WORLD · 武侠开放世界</div>
+      <div class="big">用游戏的方式<br>打开<em>贵州</em></div>
+      <div class="desc">一座 17 万平方公里的开放世界地图。瀑、峰、洞、寨皆为坐标，山水之间，皆是江湖。点击进入，体验「游戏界面转场」与武侠 HUD 覆层。</div>
+      <div class="cta" id="enterBtn"><span class="k">SPACE</span> 进 入 黔 境</div>
+      <div class="hint">右下角面板可切换地区 / 上传你自己的贵州视频做背景</div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL ===== -->
+  <div id="panel">
+    <div id="panelToggle">面板 ▾</div>
+    <div class="body">
+      <h4>REGION · 切换地区(触发转场)</h4>
+      <div class="regs" id="regBtns"></div>
+      <h4>BACKGROUND · 背景</h4>
+      <div class="prow">
+        <label for="fileVid">⬆ 上传视频</label>
+        <label for="fileImg">⬆ 上传图片</label>
+        <button id="resetBg">水墨场景</button>
+      </div>
+      <div class="prow">
+        <button id="dayBtn">☀ 昼夜</button>
+        <button id="hudBtn">隐藏 HUD</button>
+        <button id="replayBtn">↻ 重放转场</button>
+      </div>
+      <div class="tip">提示：隐藏 HUD 可截干净的背景；录屏此页即可叠加到你的素材上。</div>
+      <input type="file" id="fileVid" accept="video/*">
+      <input type="file" id="fileImg" accept="image/*">
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
+/* ---- region data (贵州名胜) ---- */
+const REGIONS=[
+  {cn:"贵 州", py:"GUI ZHOU", sub:"山地公园省 · 多彩贵州", seal:"入<br>黔",
+   tint:"63,125,90", sky:["#cdd6c8","#9aa893"], far:"#7c8a7a", mid:"#4d5a4c", near:"#222a22",
+   coords:"E 106° · N 26°", time:"☀ 晌午", deco:"mist",
+   quest:"黔山探秘", objs:[["踏入贵州地界",1],["寻访黄果树瀑布",0],["登临梵净金顶",0],["夜访千户苗寨",0]],
+   wp:["云台揽胜",240], discover:"贵州·黔境",
+   guide:"欢迎来到黔境——这里九成是山，云雾深处，藏着整片江湖。"},
+
+  {cn:"黄果树", py:"HUANGGUOSHU", sub:"亚洲第一大瀑布 · 水帘洞天", seal:"瀑<br>布",
+   tint:"70,150,170", sky:["#c4d6da","#7f9aa0"], far:"#6f8488", mid:"#3f5a5e", near:"#1c2c2e",
+   coords:"E 105° · N 25°", time:"☀ 午后", deco:"water",
+   quest:"水帘探瀑", objs:[["抵达黄果树景区",1],["穿越水帘洞",0],["寻找最佳观瀑点",0]],
+   wp:["瀑前观景台",120], discover:"黄果树瀑布",
+   guide:"前方水声如雷——这便是宽 101 米的黄果树瀑布，可从洞中反看水帘。"},
+
+  {cn:"梵净山", py:"FANJINGSHAN", sub:"武陵之巅 · 云海金顶", seal:"登<br>顶",
+   tint:"120,140,90", sky:["#dde2d6","#b3bda9"], far:"#92a08a", mid:"#5d6c50", near:"#2c3624",
+   coords:"E 108° · N 27°", time:"⛅ 清晨", deco:"mist",
+   quest:"问道金顶", objs:[["攀登 8888 级石阶",1],["穿越云海",0],["登临红云金顶",0]],
+   wp:["蘑菇石",380], discover:"梵净山·金顶",
+   guide:"海拔 2572 米，云在脚下走。红云金顶上，一寺分两殿，需攀铁索而上。"},
+
+  {cn:"小七孔", py:"XIAOQIKONG", sub:"荔波 · 地球绿宝石", seal:"碧<br>水",
+   tint:"40,170,140", sky:["#cfe2d8","#8fbfa8"], far:"#6ba089", mid:"#3a7a62", near:"#16382c",
+   coords:"E 107° · N 25°", time:"☀ 上午", deco:"water",
+   quest:"绿宝石之径", objs:[["步入小七孔古桥",1],["卧龙潭泛舟",0],["探访 68 级跌水瀑布",0]],
+   wp:["卧龙潭",90], discover:"荔波·小七孔",
+   guide:"水绿得不真实——荔波小七孔，喀斯特森林里的一串翡翠水链。"},
+
+  {cn:"千户苗寨", py:"MIAO VILLAGE", sub:"西江 · 万家灯火", seal:"夜<br>寨",
+   tint:"180,110,60", sky:["#3a2e33","#1c161a"], far:"#574048", mid:"#3a2c30", near:"#181014",
+   coords:"E 108° · N 26°", time:"🌙 入夜", deco:"lanterns",
+   quest:"灯火苗疆", objs:[["登上观景台",1],["俯瞰万家灯火",0],["赴一场长桌宴",0]],
+   wp:["西江观景台",60], discover:"西江千户苗寨",
+   guide:"夜幕落下，一千多户吊脚楼次第亮灯——这是苗疆最盛的星河。"},
+];
+
+let cur=0, dayNight="day", hudHidden=false;
+
+/* ---- build region buttons ---- */
+const regBtns=$("#regBtns");
+REGIONS.forEach((r,i)=>{
+  const b=document.createElement("button");
+  b.textContent=r.cn.replace(/\s/g,"");
+  b.onclick=()=>goRegion(i);
+  if(i===0)b.classList.add("active");
+  regBtns.appendChild(b);
+});
+
+/* ---- lanterns ---- */
+const lanWrap=$("#lanterns");
+for(let i=0;i<70;i++){
+  const d=document.createElement("div"); d.className="lantern";
+  d.style.left=(8+Math.random()*84)+"%";
+  d.style.top=(55+Math.random()*35)+"%";
+  d.style.animationDelay=(Math.random()*2.4)+"s";
+  lanWrap.appendChild(d);
+}
+
+/* ---- bars / live HUD ---- */
+let hp=1,qi=.9,st=1;
+function setBar(id,v,nid,max,unit){ $(id).style.transform=`scaleX(${v})`; if(nid)$(nid).textContent=`${Math.round(v*max)}/${max}`; }
+function refreshBars(){ setBar("#hp",hp,"#hpn",980); setBar("#qi",qi,"#qin",600); setBar("#st",st,"#stn",100); }
+refreshBars();
+setInterval(()=>{ // regen
+  st=Math.min(1,st+0.04); qi=Math.min(1,qi+0.01); refreshBars();
+},400);
+
+/* ---- waypoint distance ticking ---- */
+setInterval(()=>{
+  const el=$("#wpDist"); let d=parseInt(el.textContent); if(isNaN(d))return;
+  d=d>20?d-Math.ceil(Math.random()*6):REGIONS[cur].wp[1];
+  el.textContent=d+" m";
+},700);
+
+/* ---- narrator typing ---- */
+let typeTimer=null;
+function typeLine(txt,name){
+  if(name)$("#talkName").textContent=name;
+  const el=$("#talkLine"); el.textContent=""; clearInterval(typeTimer); let i=0;
+  typeTimer=setInterval(()=>{ el.textContent=txt.slice(0,++i); if(i>=txt.length)clearInterval(typeTimer); },42);
+}
+
+/* ---- toasts ---- */
+function toast(label,text,cls=""){
+  const t=document.createElement("div"); t.className="toast "+cls;
+  t.innerHTML=`<span class="lab">${label}</span>${text}`;
+  $("#toasts").appendChild(t);
+  setTimeout(()=>t.remove(),4200);
+}
+
+/* ---- quest objectives ---- */
+function renderQuest(r){
+  $("#qMain").textContent=r.quest;
+  const box=$("#qObjs"); box.innerHTML="";
+  r.objs.forEach((o,idx)=>{
+    const done=o[1]===1;
+    const cur=!done && (idx===r.objs.findIndex(x=>x[1]===0));
+    const d=document.createElement("div"); d.className="obj"+(done?" done":"");
+    d.innerHTML=`<span class="box${cur?" cur":""}"></span><span>${o[0]}</span>`;
+    box.appendChild(d);
+  });
+}
+
+/* ---- apply scene look for a region ---- */
+function applyRegion(r){
+  const root=document.documentElement.style;
+  root.setProperty("--tint",r.tint);
+  root.setProperty("--sky-top",r.sky[0]); root.setProperty("--sky-bot",r.sky[1]);
+  root.setProperty("--mtn-far",r.far); root.setProperty("--mtn-mid",r.mid); root.setProperty("--mtn-near",r.near);
+  $("#rcn").textContent=r.cn; $("#rpy").textContent=r.py;
+  $("#coords").textContent=r.coords; $("#daytime").textContent=r.time;
+  $("#wpName").textContent="前往 · "+r.wp[0]; $("#wpDist").textContent=r.wp[1]+" m";
+  $("#discName").textContent=r.discover;
+  $("#waterfall").style.opacity=(r.deco==="water"&&r===REGIONS[1])?1:0;
+  $("#wmist").style.opacity=(r===REGIONS[1])?1:0;
+  $("#water").style.opacity=(r.deco==="water")?1:0;
+  $("#lanterns").style.opacity=(r.deco==="lanterns")?1:0;
+  $("#sun").style.opacity=(r.deco==="lanterns")?0:1;
+  renderQuest(r);
+}
+
+/* ---- THE TRANSITION (游戏界面转场) ---- */
+function playTransition(r,full){
+  const T=$("#trans"); T.classList.add("run");
+  const ink=$("#inkA"), line=$("#enterLine"), seal=$("#seal");
+  const cn=$("#tCn"), py=$("#tPy"), sub=$("#tSub");
+  $("#hud").classList.remove("show");
+  cn.textContent=r.cn; py.textContent=r.py; sub.textContent=r.sub; seal.innerHTML=r.seal;
+
+  // reset
+  ink.style.transition="none"; ink.style.clipPath="circle(0% at 50% 55%)";
+  cn.style.transition=py.style.transition=sub.style.transition="none";
+  cn.style.opacity=0; cn.style.filter="blur(14px)"; cn.style.letterSpacing="40px";
+  py.style.opacity=0; sub.style.opacity=0;
+  seal.style.transition="none"; seal.style.transform="scale(0) rotate(-18deg)";
+  line.style.transition="none"; line.style.transform="scaleX(0)";
+  void ink.offsetWidth;
+
+  // 1) ink floods in
+  ink.style.transition="clip-path .55s cubic-bezier(.7,0,.3,1)";
+  ink.style.clipPath="circle(150% at 50% 55%)";
+
+  setTimeout(()=>{ // 2) apply new look behind the black, then reveal title
+    applyRegion(r);
+    line.style.transition="transform .5s ease"; line.style.transform="scaleX(1)";
+    cn.style.transition="opacity .8s ease, filter .8s ease, letter-spacing 1s cubic-bezier(.2,.8,.2,1)";
+    cn.style.opacity=1; cn.style.filter="blur(0)"; cn.style.letterSpacing="6px";
+    setTimeout(()=>{ py.style.transition="opacity .6s"; py.style.opacity=1; },260);
+    setTimeout(()=>{ sub.style.transition="opacity .6s"; sub.style.opacity=1; },420);
+    setTimeout(()=>{ // seal stamp
+      seal.style.transition="transform .35s cubic-bezier(.34,1.56,.64,1)";
+      seal.style.transform="scale(1) rotate(-8deg)";
+    },560);
+  },560);
+
+  const hold = full?2100:1500;
+  setTimeout(()=>{ // 3) ink recedes -> world revealed
+    ink.style.transition="clip-path .6s cubic-bezier(.7,0,.3,1)";
+    ink.style.clipPath="circle(0% at 50% 55%)";
+    cn.style.opacity=0; py.style.opacity=0; sub.style.opacity=0;
+    seal.style.opacity=0; line.style.opacity=0;
+    setTimeout(()=>{
+      T.classList.remove("run");
+      line.style.opacity=1; seal.style.opacity=1;
+      $("#hud").classList.add("show");
+      showDiscover(r);
+      typeLine(r.guide,"向导 · 阿黔");
+      toast("LOCATION","已抵达 · "+r.discover);
+    },620);
+  },560+hold);
+}
+
+/* ---- discover banner anim ---- */
+function showDiscover(r){
+  const d=$("#discover"); const ln=d.querySelector(".ln");
+  d.style.transition="none"; d.style.opacity=0; d.style.transform="translateX(-50%) translateY(10px)"; ln.style.width="0";
+  void d.offsetWidth;
+  d.style.transition="opacity .6s, transform .6s";
+  d.style.opacity=1; d.style.transform="translateX(-50%) translateY(0)";
+  ln.style.transition="width 1s .2s ease"; ln.style.width="220px";
+  setTimeout(()=>{ d.style.opacity=0; },2600);
+}
+
+/* ---- region switch (light wipe + transition) ---- */
+function goRegion(i){
+  cur=i;
+  $$(".regs button").forEach((b,bi)=>b.classList.toggle("active",bi===i));
+  const w=$("#wipe");
+  w.style.transition="none"; w.style.transform="translateX(-100%)"; void w.offsetWidth;
+  w.style.transition="transform .9s ease"; w.style.transform="translateX(100%)";
+  playTransition(REGIONS[i], i===0);
+  toast("REGION","进入新区域");
+}
+
+/* ---- enter game ---- */
+function enterGame(){
+  const s=$("#start");
+  s.style.transition="opacity .6s"; s.style.opacity=0;
+  setTimeout(()=>{ s.style.display="none"; playTransition(REGIONS[0],true); },500);
+}
+$("#enterBtn").onclick=enterGame;
+
+/* ---- keyboard interactions ---- */
+const PROMPTS=["探索此地","查看景观","采集 · 灵草","记录 · 坐标","攀谈 · 路人"];
+document.addEventListener("keydown",e=>{
+  if($("#start").style.display!=="none"){ if(e.code==="Space"){e.preventDefault();enterGame();} return; }
+  if(e.code==="Space"){ e.preventDefault(); useSkill(1,"轻功·踏云","施展轻功，踏云而行"); st=Math.max(0,st-.3); refreshBars(); }
+  if(e.key==="f"||e.key==="F"){ interact(); }
+  if(e.key==="q"||e.key==="Q"){ useSkill(0,"疾风步","疾风步 · 身形如电"); }
+  if(e.key==="e"||e.key==="E"){ useSkill(2,"天眼","开天眼 · 远眺群山"); showDiscover(REGIONS[cur]); }
+  if(e.key==="r"||e.key==="R"){ useSkill(3,"归乡符","归乡符 · 传送回城"); }
+});
+let pT;
+function interact(){
+  const p=$("#prompt"); $("#promptTxt").textContent=PROMPTS[Math.floor(Math.random()*PROMPTS.length)];
+  p.classList.add("on"); clearTimeout(pT); pT=setTimeout(()=>p.classList.remove("on"),1400);
+  const gains=["阅历 +50","见闻 +1","好感度 +10","灵石 +3"];
+  toast("REWARD","获得 · "+gains[Math.floor(Math.random()*gains.length)]);
+  // tick a quest objective
+  const r=REGIONS[cur]; const idx=r.objs.findIndex(o=>o[1]===0);
+  if(idx>-1){ r.objs[idx][1]=1; renderQuest(r);
+    if(idx>0)toast("QUEST","目标完成 · "+r.objs[idx][0],"ach");
+    if(r.objs.every(o=>o[1]===1))setTimeout(()=>toast("ACHIEVEMENT","成就解锁 · "+r.quest+"·圆满","ach"),400);
+  }
+}
+function useSkill(slot,name,line){
+  const cd=$("#cd"+slot); cd.style.transition="none"; cd.style.transform="scaleY(1)"; void cd.offsetWidth;
+  cd.style.transition="transform 1.6s linear"; cd.style.transform="scaleY(0)";
+  typeLine(line,"侠客 · 无名");
+}
+// pointer = interact too
+$("#stage").addEventListener("click",e=>{ if($("#start").style.display==="none" && !e.target.closest("#panel")) interact(); });
+
+/* ---- panel controls ---- */
+$("#panelToggle").onclick=()=>{ const p=$("#panel"); p.classList.toggle("hide"); $("#panelToggle").textContent=p.classList.contains("hide")?"面板 ▴":"面板 ▾"; };
+$("#dayBtn").onclick=()=>{
+  dayNight=dayNight==="day"?"night":"day";
+  const sc=$("#scene");
+  sc.style.filter=dayNight==="night"?"brightness(.5) saturate(.7) hue-rotate(-12deg)":"none";
+  $("#daytime").textContent=dayNight==="night"?"🌙 夜":REGIONS[cur].time;
+  toast("TIME",dayNight==="night"?"入夜":"破晓");
+};
+$("#hudBtn").onclick=()=>{
+  hudHidden=!hudHidden; $("#hud").style.opacity=hudHidden?0:1;
+  $("#hudBtn").textContent=hudHidden?"显示 HUD":"隐藏 HUD";
+};
+$("#replayBtn").onclick=()=>playTransition(REGIONS[cur],true);
+$("#resetBg").onclick=()=>{ $("#userVid").style.display="none"; $("#userImg").style.display="none";
+  $$("#far,#mid,#near,.mist,#sun").forEach(el=>el.style.display=""); toast("BG","已切回水墨场景"); };
+
+function showUserMedia(){ $$("#far,#mid,#near,.mist,#sun,#waterfall,#wmist,#water,#lanterns").forEach(el=>el.style.display="none"); }
+$("#fileVid").onchange=e=>{ const f=e.target.files[0]; if(!f)return; const v=$("#userVid");
+  v.src=URL.createObjectURL(f); v.style.display="block"; v.play(); $("#userImg").style.display="none"; showUserMedia();
+  toast("BG","已载入视频背景 · 录屏即可叠加 HUD"); };
+$("#fileImg").onchange=e=>{ const f=e.target.files[0]; if(!f)return; const im=$("#userImg");
+  im.src=URL.createObjectURL(f); im.style.display="block"; $("#userVid").style.display="none"; showUserMedia();
+  toast("BG","已载入图片背景"); };
+
+/* ---- floating motes (always-on ambient motion) ---- */
+const pWrap=$("#particles");
+for(let i=0;i<46;i++){
+  const m=document.createElement("div"); m.className="mote";
+  const sz=1.5+Math.random()*3;
+  m.style.width=sz+"px"; m.style.height=sz+"px";
+  m.style.left=(Math.random()*100)+"%";
+  m.style.bottom=(-10-Math.random()*30)+"px";
+  const dur=9+Math.random()*14;
+  m.style.animationDuration=dur+"s";
+  m.style.animationDelay=(-Math.random()*dur)+"s";
+  m.style.setProperty("--dx",(Math.random()*120-60)+"px");
+  m.style.opacity=.4+Math.random()*.5;
+  pWrap.appendChild(m);
+}
+
+/* init look (behind start screen) */
+applyRegion(REGIONS[0]);
+</script>
+</body>
+</html>
