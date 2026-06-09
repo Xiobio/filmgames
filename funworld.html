@@ -898,6 +898,8 @@ updateMute();
 const keys={};
 addEventListener('keydown',e=>{ keys[e.code]=true; if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault(); });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
+addEventListener('keydown',e=>{ if(e.code==='Escape' && state==='play') toMenu(); });   // 键盘玩家可随时退回菜单，不再被困在关里
+addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; touch.x=touch.y=0; jumpHeld=false; });   // 切走/Alt-Tab 时清空按键，回来不会自己冲出去
 let dragging=false,lx=0,ly=0,camYaw=0.4,camPitch=0.5,camDist=10;
 let lastCamY=0, camClimb=0;   // 相机随爬升抬高视线：上坡/上升时多看到上方平台，下降时略看下方
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -908,7 +910,8 @@ canvas.addEventListener('wheel',e=>{ camDist=Math.min(18,Math.max(5,camDist+e.de
 // 触屏
 const touch={x:0,y:0};
 { const joy=document.getElementById('joy'),jt=document.getElementById('jt'); let pid=null;
-  const at=e=>{ const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2; let dx=e.clientX-cx,dy=e.clientY-cy; const mx=r.width/2,d=Math.hypot(dx,dy)||1; if(d>mx){dx*=mx/d;dy*=mx/d;} jt.style.transform=`translate(${dx}px,${dy}px)`; touch.x=dx/mx; touch.y=dy/mx; };
+  const at=e=>{ const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2; let dx=e.clientX-cx,dy=e.clientY-cy; const mx=r.width/2,d=Math.hypot(dx,dy)||1; if(d>mx){dx*=mx/d;dy*=mx/d;} jt.style.transform=`translate(${dx}px,${dy}px)`; touch.x=dx/mx; touch.y=dy/mx;
+    const tm=Math.hypot(touch.x,touch.y); if(tm<0.18){ touch.x=touch.y=0; } else { const sc=((tm-0.18)/0.82)/tm; touch.x*=sc; touch.y*=sc; } };   // 摇杆死区，防拇指抖动漂移
   joy.addEventListener('pointerdown',e=>{pid=e.pointerId;joy.setPointerCapture(e.pointerId);at(e);e.preventDefault();});
   joy.addEventListener('pointermove',e=>{if(e.pointerId===pid)at(e);});
   const up=e=>{if(e.pointerId===pid){pid=null;touch.x=touch.y=0;jt.style.transform='translate(0,0)';}}; joy.addEventListener('pointerup',up); joy.addEventListener('pointercancel',up);
@@ -961,9 +964,11 @@ function tick(dt){
     if(keys.KeyD||keys.ArrowRight)_w.add(_r); if(keys.KeyA||keys.ArrowLeft)_w.sub(_r);
     if(touch.x||touch.y){ _w.add(_f.clone().multiplyScalar(-touch.y)).add(_r.clone().multiplyScalar(touch.x)); }
     const moving=_w.lengthSq()>0.01;
-    const spd=(keys.ShiftLeft||keys.ShiftRight)?SPRINT:RUN;
+    const mag=Math.hypot(touch.x,touch.y);
+    const spd=((keys.ShiftLeft||keys.ShiftRight)||mag>0.85)?SPRINT:RUN;   // 移动端推满摇杆=自动冲刺
     if(moving)_w.normalize().multiplyScalar(spd);
-    vel.x+=(_w.x-vel.x)*Math.min(1,ACC*dt); vel.z+=(_w.z-vel.z)*Math.min(1,ACC*dt);
+    const acc = moving ? (grounded?ACC:ACC*0.6) : (grounded?22:1.5);   // 有输入加速(空中略弱保跳跃弧线)；松开:地面脆停/空中保惯性
+    vel.x+=(_w.x-vel.x)*Math.min(1,acc*dt); vel.z+=(_w.z-vel.z)*Math.min(1,acc*dt);
   } else if(stun>0){ stun-=dt; vel.x-=vel.x*Math.min(1,7*dt); vel.z-=vel.z*Math.min(1,7*dt); }   // 被击飞：惯性快速衰减，不再全速飞出窄道
   else { vel.x-=vel.x*Math.min(1,10*dt); vel.z-=vel.z*Math.min(1,10*dt); }   // 菜单/结算：减速停下
   // —— 水平移动 + 墙体碰撞：撞到实体侧面被挡住，不能穿过、也不会瞬移到顶上 ——
@@ -1069,7 +1074,7 @@ function tick(dt){
   let d=facing-player.rotation.y; while(d>Math.PI)d-=6.2832; while(d<-Math.PI)d+=6.2832;
   player.rotation.y+=d*Math.min(1,16*dt);
   // 冲刺扬尘
-  if(state==='play' && grounded && sp>7 && (keys.ShiftLeft||keys.ShiftRight)){ dustClock+=dt; if(dustClock>0.09){ dustClock=0; sprintDust(); } } else dustClock=0;
+  if(state==='play' && grounded && sp>8.5){ dustClock+=dt; if(dustClock>0.09){ dustClock=0; sprintDust(); } } else dustClock=0;   // 按实际速度扬尘(移动端自动冲刺也有)
   // ---- Q 弹动画（squash & stretch + 摆腿 + 倾身）----
   const stretch = grounded?0:Math.max(-0.3,Math.min(0.35, vy*0.02));
   squashV += (((grounded?0:stretch*10) - squash*8) - squashV*0.5)*Math.min(1,dt*14);
