@@ -345,6 +345,16 @@ function genLevel(idx, salt){
   // 移动平台星（W3 起）
   if(useMovers){ for(let i=0;i<numMovers&&remaining>0;i++){ const hw=1.9+rng()*0.4, hd=1.8+rng()*0.4, top=+(0.8+rng()*Math.min(maxTop-0.8,1.3)).toFixed(2), axis=rng()<0.5?'x':'z';
     const s=spot(Math.max(hw,hd)+movRange); if(s){ movers.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col(),axis,+movRange.toFixed(1),+movSpd.toFixed(2)]); stars.push([s[0],+(top+1.2).toFixed(2),s[1]]); remaining--; } } }
+  // 阶梯/塔结构（约一半关卡，制造垂直地形：每级从上一级可跳达）
+  if((idx*3+world)%2===0 && remaining>4){ const base=spot(1.6);
+    if(base){ let cx=base[0], cz=base[1], ctop=+(1.0+rng()*1.2).toFixed(2);
+      platforms.push([cx,cz,2.6,2.6,ctop,col()]); stars.push([cx,+(ctop+1.0).toFixed(2),cz]); remaining--;
+      const steps=2+Math.floor(rng()*3);
+      for(let s=0;s<steps && remaining>3;s++){ let placedStep=false;
+        for(let k=0;k<14 && !placedStep;k++){ const ang=rng()*6.2832, dist=4.0+rng()*0.6, nx=+(cx+Math.cos(ang)*dist).toFixed(2), nz=+(cz+Math.sin(ang)*dist).toFixed(2);
+          if(Math.hypot(nx,nz)>5 && Math.hypot(nx,nz)<R-2.5 && free(nx,nz,1.4)){ const ntop=+(ctop+1.7+rng()*0.6).toFixed(2);
+            placed.push({x:nx,z:nz,r:1.4}); platforms.push([nx,nz,2.4,2.4,ntop,col()]); stars.push([nx,+(ntop+1.0).toFixed(2),nz]); remaining--; cx=nx; cz=nz; ctop=ntop; placedStep=true; } }
+        if(!placedStep) break; } } }
   // 平台星（其余）
   let guard=0;
   while(remaining>0 && guard++<300){ const hw=arch.hw[0]+rng()*(arch.hw[1]-arch.hw[0]), hd=arch.hw[0]+rng()*(arch.hw[1]-arch.hw[0]), top=+(0.8+rng()*(maxTop-0.8)).toFixed(2);
@@ -365,10 +375,17 @@ function validateLevel(L){
   (L.pads||[]).forEach(p=>fp.push({x:p[0],z:p[1],r:1.7}));
   if(!L.goalPos) return false; fp.push({x:L.goalPos[0],z:L.goalPos[2],r:2.0});
   for(let i=0;i<fp.length;i++)for(let j=i+1;j<fp.length;j++){ if(Math.hypot(fp[i].x-fp[j].x,fp[i].z-fp[j].z)<fp[i].r+fp[j].r-0.6) return false; }
+  // 可达平台（链式）：top≤3 地面可跳达 → 反复扩展（从已可达平台/移动平台/弹簧 水平≤5.2 且升高≤2.6 跳上去）
+  const plats=(L.platforms||[]).map(p=>({x:p[0],z:p[1],top:p[4],reach:p[4]<=3.0}));
+  const movR=(L.movers||[]).filter(m=>m[4]<=3.0).map(m=>({x:m[0],z:m[1],top:m[4]}));
+  let chg=true,guard=0; while(chg&&guard++<30){ chg=false; for(const p of plats){ if(p.reach)continue;
+    for(const q of plats){ if(q.reach && Math.hypot(p.x-q.x,p.z-q.z)<=5.2 && (p.top-q.top)<=2.6){ p.reach=true; chg=true; break; } }
+    if(!p.reach) for(const m of movR){ if(Math.hypot(p.x-m.x,p.z-m.z)<=5.2 && (p.top-m.top)<=2.6){ p.reach=true; chg=true; break; } }
+    if(!p.reach) for(const pad of (L.pads||[])){ if(Math.hypot(p.x-pad[0],p.z-pad[1])<=4.0 && p.top<=7.0){ p.reach=true; chg=true; break; } } } }
   for(const st of (L.stars||[])){ if(st[1]<=1.6) continue; let ok=false;
-    for(const p of (L.platforms||[])){ if(Math.abs(st[0]-p[0])<p[2]/2+0.6 && Math.abs(st[2]-p[1])<p[3]/2+0.6 && p[4]<=3.0 && st[1]-p[4]>=0.3 && st[1]-p[4]<=1.4){ ok=true; break; } }
-    if(!ok) for(const m of (L.movers||[])){ if(Math.abs(st[0]-m[0])<1.0 && Math.abs(st[2]-m[1])<1.0 && m[4]<=3.0 && st[1]-m[4]<=1.6){ ok=true; break; } }
-    if(!ok) for(const p of (L.pads||[])){ if(Math.abs(st[0]-p[0])<2.0 && Math.abs(st[2]-p[1])<2.0 && st[1]<=7.0){ ok=true; break; } }   // 弹簧可弹到的高空星
+    for(let pi=0;pi<plats.length;pi++){ const p=L.platforms[pi]; if(plats[pi].reach && Math.abs(st[0]-p[0])<p[2]/2+0.6 && Math.abs(st[2]-p[1])<p[3]/2+0.6 && st[1]-p[4]>=0.3 && st[1]-p[4]<=1.4){ ok=true; break; } }
+    if(!ok) for(const m of (L.movers||[])){ if(m[4]<=3.0 && Math.abs(st[0]-m[0])<1.0 && Math.abs(st[2]-m[1])<1.0 && st[1]-m[4]<=1.6){ ok=true; break; } }
+    if(!ok) for(const p of (L.pads||[])){ if(Math.abs(st[0]-p[0])<2.0 && Math.abs(st[2]-p[1])<2.0 && st[1]<=7.0){ ok=true; break; } }
     if(!ok) return false; }
   return (L.stars||[]).length>=4;
 }
