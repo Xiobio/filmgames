@@ -704,7 +704,7 @@ function refreshStartStats(){ const b=parseFloat(LS.getItem('bean_best'))||0, st
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; lastCamY=curSpawn[1]; camClimb=0; hazGraceMs=900; }
+  player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; lastCamY=curSpawn[1]; camClimb=0; hazGraceMs=900; shake=0; }
 function startGame(){ A.init(); resetRun();
   if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
   if(!dailyMode){ try{ const g=LS.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
@@ -726,7 +726,7 @@ function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
 function startDaily(){ A.init(); dailyMode=true; buildLevelData(genDaily()); resetRun(); state='play'; running=true;
   startEl.classList.remove('show'); winEl.classList.remove('show'); const m=document.getElementById('map'); if(m)m.classList.remove('show'); document.body.classList.add('playing');
   const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='📅 今日挑战 · 收齐 ⭐ 冲终点！'; } }
-function showWin(){ running=false; state='results';
+function showWin(){ running=false; state='results'; shake=0.6;
   const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
   wbonusEl.textContent = bonus>0 ? `原始 ${raw.toFixed(1)}s − 连击奖励 ${bonus.toFixed(1)}s` : `用时 ${raw.toFixed(1)}s`;
   const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1;
@@ -902,6 +902,7 @@ addEventListener('keydown',e=>{ if(e.code==='Escape' && state==='play') toMenu()
 addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; touch.x=touch.y=0; jumpHeld=false; });   // 切走/Alt-Tab 时清空按键，回来不会自己冲出去
 let dragging=false,lx=0,ly=0,camYaw=0.4,camPitch=0.5,camDist=10;
 let lastCamY=0, camClimb=0;   // 相机随爬升抬高视线：上坡/上升时多看到上方平台，下降时略看下方
+let shake=0;   // 屏幕震动：命中/弹跳/硬着陆/通关时抖一下，打击感/存在感
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{ if(e.button===2){dragging=true;lx=e.clientX;ly=e.clientY;} });
 addEventListener('mouseup',()=>dragging=false);
@@ -1019,7 +1020,7 @@ function tick(dt){
     if(over && prevFeet>=s.top-0.05 && s.top>support){ support=s.top; supSolid=s; }   // 必须先在顶面之上
   }
   if(player.position.y<=support+0.001 && vy<=0){
-    if(!grounded){ squashV=-Math.min(9,Math.abs(vy)*0.9); landPuff(); if(Math.abs(vy)>2) A.land(); }
+    if(!grounded){ squashV=-Math.min(9,Math.abs(vy)*0.9); landPuff(); if(Math.abs(vy)>2) A.land(); if(Math.abs(vy)>6) shake=Math.max(shake,0.28); }   // 硬着陆才抖
     player.position.y=support; vy=0; grounded=true; groundSolid=supSolid; lastGroundedMs=timeMs;   // 记录着地时刻（coyote用）
     if(state==='play' && supSolid && supSolid.conv){ player.position.x+=supSolid.cvx*dt; player.position.z+=supSolid.cvz*dt; }   // 传送带：站上去被推着走
     if(state==='play' && supSolid && supSolid.box && !supSolid.dyn && supSolid.top>0.6)   // 站上静态高台=记录检查点
@@ -1034,7 +1035,7 @@ function tick(dt){
       if(score>=total){ if(running) showWin(); }
       else if(goalCd<=0){ goalCd=1.0;   // 未集齐就到终点 → 惩罚：击退 + 扣时间 + 提示
         const dx=player.position.x-curGoal[0], dz=player.position.z-curGoal[2], d=Math.hypot(dx,dz)||1;
-        vel.x=dx/d*13; vel.z=dz/d*13; vy=7.5; grounded=false; stun=0.3; timeMs+=2000; A.hit();
+        vel.x=dx/d*13; vel.z=dz/d*13; vy=7.5; grounded=false; stun=0.3; timeMs+=2000; A.hit(); shake=0.45;
         const o=document.getElementById('obj'); if(o){ o.textContent='❌ 还差 '+(total-score)+' 颗 ⭐！(罚 +2s)'; o.classList.add('warn'); clearTimeout(o._t);
           o._t=setTimeout(()=>{ o.classList.remove('warn'); o.textContent=goalOpen?'🏁 终点门已开启 → 冲！':('⭐ '+score+'/'+total+' → 收齐后冲终点'); },1500); }
       }
@@ -1042,7 +1043,7 @@ function tick(dt){
   }
   // 弹簧
   for(const pd of pads){ pd.sq=Math.max(0,pd.sq-dt*5); pd.g.scale.y=1-pd.sq*0.4;
-    if(state==='play' && grounded && Math.abs(player.position.x-pd.x)<1.5 && Math.abs(player.position.z-pd.z)<1.5){ vy=20; grounded=false; squashV=8; pd.sq=1; A.bounce(); } }
+    if(state==='play' && grounded && Math.abs(player.position.x-pd.x)<1.5 && Math.abs(player.position.z-pd.z)<1.5){ vy=20; grounded=false; squashV=8; pd.sq=1; A.bounce(); shake=0.4; } }
   // 旋转横扫机关：转动 + 命中弹飞（跳得比横杆高 / 卡时机穿过可躲）
   for(const spn of spinners){
     spn.ang+=spn.spd*dt; spn.arm.rotation.y=spn.ang;
@@ -1053,7 +1054,7 @@ function tick(dt){
     const along=dx*ca-dz*sa, perp=dx*sa+dz*ca;       // u=(cos,-sin) 沿杆；p=(sin,cos) 垂直
     if(Math.abs(along)>spn.len/2 || Math.abs(perp)>0.45+PR) continue;
     const s=Math.sign(perp)||1;                        // 命中：弱击退踉跄(不再飞出窄道) + 短硬直，靠摩擦快速衰减
-    vel.x=sa*s*8; vel.z=ca*s*8; vy=4; grounded=false; squashV=7; stun=0.22; spn.cd=0.5; A.hit();
+    vel.x=sa*s*8; vel.z=ca*s*8; vy=4; grounded=false; squashV=7; stun=0.22; spn.cd=0.5; A.hit(); shake=0.5;
   }
   // 摆锤：摆动 + 命中弹飞（卡时机从锤经过后穿过）
   for(const pe of pendulums){
@@ -1065,7 +1066,7 @@ function tick(dt){
     const by = pe.H-Math.cos(pe.ang)*pe.Larm;
     const dd=Math.hypot(player.position.x-bx, (player.position.y+0.7)-by, player.position.z-bz);
     if(dd < pe.ballR+PR+0.15){ const hx=player.position.x-bx, hz=player.position.z-bz, hl=Math.hypot(hx,hz)||1;
-      vel.x=hx/hl*8; vel.z=hz/hl*8; vy=4; grounded=false; squashV=7; stun=0.22; pe.cd=0.5; A.hit(); }
+      vel.x=hx/hl*8; vel.z=hz/hl*8; vy=4; grounded=false; squashV=7; stun=0.22; pe.cd=0.5; A.hit(); shake=0.5; }
   }
   // 压路机：上下砸 + 命中弹飞（卡时机从抬起时冲过）
   for(const cr of crushers){
@@ -1075,7 +1076,7 @@ function tick(dt){
     if(Math.abs(player.position.x-cr.x)<cr.hw+PR && Math.abs(player.position.z-cr.z)<cr.hd+PR && bottom<player.position.y+1.4 && bottom>player.position.y-0.4){
       const hx=player.position.x-cr.x, hz=player.position.z-cr.z; let dx=0,dz=0;
       if(Math.abs(hx)>=Math.abs(hz)) dx=Math.sign(hx)||1; else dz=Math.sign(hz)||1;
-      vel.x=dx*8; vel.z=dz*8; vy=4; grounded=false; squashV=8; stun=0.22; cr.cd=0.5; A.hit(); }
+      vel.x=dx*8; vel.z=dz*8; vy=4; grounded=false; squashV=8; stun=0.22; cr.cd=0.5; A.hit(); shake=0.55; }
   }
   // 朝向
   const sp=Math.hypot(vel.x,vel.z);
@@ -1104,6 +1105,7 @@ function tick(dt){
   _tgt.set(player.position.x+vel.x*0.08, player.position.y+1.2+lookUp, player.position.z+vel.z*0.08);
   _off.set(Math.sin(camYaw)*Math.cos(camPitch),Math.sin(camPitch),Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
   _goal.copy(_tgt).add(_off); camera.position.lerp(_goal,Math.min(1,8*dt)); camera.lookAt(_tgt);
+  shake=Math.max(0,shake-dt*8); if(shake>0.01){ camera.position.x+=(Math.random()-0.5)*shake*0.5; camera.position.y+=(Math.random()-0.5)*shake*0.5; }   // 屏幕震动衰减+偏移
   // 星星（磁吸 + 收集）：横向接近自动吸入，垂直加权避免从下方吸走高处的星
   for(const s of stars){ if(!s.alive)continue; s.spin+=dt*2.4; s.m.rotation.y=s.spin;
     _mp.set(player.position.x, player.position.y+0.9, player.position.z);
@@ -1143,7 +1145,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
