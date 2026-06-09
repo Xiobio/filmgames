@@ -393,7 +393,9 @@ function validateLevel(L){
 const LEVELS=[];
 for(let i=0;i<100;i++){ let L=genLevel(i,0), tr=0; while(!validateLevel(L) && tr<30){ L=genLevel(i, tr+1); tr++; } LEVELS.push(L); }
 let levelIdx = 0, curGoal=null, goalMesh=null, goalMats=null, goalOpen=false, goalCd=0, curIslandR=30, dailyMode=false, dailyDate=0;
-function clearLevel(){ goalMesh=null; goalMats=null;
+let ghostRec=[], ghostPlay=null, ghostMesh=null, ghostLastSample=-999;   // 幽灵：录制最佳跑动轨迹，重玩时半透明对手同跑
+function makeGhost(){ const m=new THREE.Mesh(new THREE.CapsuleGeometry(0.46,0.6,6,12), new THREE.MeshBasicMaterial({color:0xaee8ff,transparent:true,opacity:0.34,depthWrite:false})); m.renderOrder=2; scene.add(m); return m; }
+function clearLevel(){ goalMesh=null; goalMats=null; if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
   for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
     o.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
     levelGroup.remove(o); }
@@ -429,7 +431,7 @@ function buildLevel(idx){ levelIdx=Math.max(0,Math.min(LEVELS.length-1,idx)); da
 function levelBest(i){ const b=parseFloat(localStorage.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
 function levelStars(i){ return +(localStorage.getItem('bean_lv'+i+'_stars')||0); }
 function totalStarsEarned(){ let s=0; for(let i=0;i<LEVELS.length;i++) s+=levelStars(i); return s; }   // Σ每关最高星级(0-300)，不随重玩膨胀
-function levelUnlocked(i){ return i<=0 || levelBest(i-1)!==null; }
+function levelUnlocked(i){ return true; }  // 去除关卡限制：任意关卡可直接进入查看（之前需逐关解锁）
 function nextLevel(){ if(levelIdx+1<LEVELS.length){ buildLevel(levelIdx+1); startGame(); } }
 
 // ---- 完整游戏流程：标题 → 游戏 → 三星结算 → 再玩 / 返回 ----
@@ -473,8 +475,11 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(0,3,0); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; }
-function startGame(){ A.init(); resetRun(); state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
+  player.position.set(0,3,0); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; }
+function startGame(){ A.init(); resetRun();
+  if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
+  if(!dailyMode){ try{ const g=localStorage.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
+  state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
 function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
 // ---- 每日挑战（按日期种子，全员同图 + 连续天数 streak）----
 function todayNum(){ const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
@@ -496,7 +501,7 @@ function showWin(){ running=false; state='results';
   // 逐关进度（与全局最佳/皮肤养成并存）
   const prevLvStars=+(localStorage.getItem('bean_lv'+levelIdx+'_stars')||0);
   try{ const bk='bean_lv'+levelIdx+'_best', sk='bean_lv'+levelIdx+'_stars';
-    const pb=parseFloat(localStorage.getItem(bk)); if(isNaN(pb)||secs<pb) localStorage.setItem(bk,String(secs));
+    const pb=parseFloat(localStorage.getItem(bk)); if(isNaN(pb)||secs<pb){ localStorage.setItem(bk,String(secs)); if(ghostRec.length>3) try{ localStorage.setItem('bean_ghost_'+levelIdx,JSON.stringify(ghostRec)); }catch(e2){} }
     if(rating>(+(localStorage.getItem(sk)||0))) localStorage.setItem(sk,String(rating)); }catch(e){}
   let rec=false; if(!best || secs<best){ best=secs; rec=true; try{ localStorage.setItem('bean_best',String(best)); }catch(e){} }
   const ps=+(localStorage.getItem('bean_stars')||0); if(rating>ps){ try{ localStorage.setItem('bean_stars',String(rating)); }catch(e){} }
@@ -688,6 +693,12 @@ addEventListener('keydown',e=>{ if(e.code==='Space')jump(); });
 function tick(dt){
   if(running){ timeMs+=dt*1000; tmEl.textContent=(timeMs/1000).toFixed(1); }
   if(combo>0 && state==='play' && timeMs-lastCollectMs>COMBO_WINDOW){ combo=0; comboEl.classList.remove('on'); }  // 连击断裂
+  // 幽灵：录制本局轨迹 + 回放最佳轨迹（半透明对手同跑）
+  if(running && timeMs-ghostLastSample>=100){ ghostRec.push([Math.round(timeMs),+player.position.x.toFixed(2),+player.position.y.toFixed(2),+player.position.z.toFixed(2),+player.rotation.y.toFixed(2)]); ghostLastSample=timeMs; }
+  if(ghostMesh && ghostPlay && ghostPlay.length){ const t=timeMs, last=ghostPlay[ghostPlay.length-1];
+    if(t<=last[0]){ let i=ghostPlay.length-1; while(i>0 && ghostPlay[i][0]>t) i--; const a=ghostPlay[i], b=ghostPlay[Math.min(i+1,ghostPlay.length-1)], f=(b[0]>a[0])?(t-a[0])/(b[0]-a[0]):0;
+      ghostMesh.position.set(a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f+0.76, a[3]+(b[3]-a[3])*f); ghostMesh.rotation.y=a[4]; ghostMesh.visible=true; }
+    else ghostMesh.visible=false; }
   // —— 移动平台：滑动并更新碰撞体；若正踩在上面则把豆豆一起带走 ——
   clock+=dt;
   for(const mv of movers){
@@ -836,7 +847,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
