@@ -198,7 +198,7 @@ const lowEnd = matchMedia('(pointer:coarse)').matches || (navigator.hardwareConc
 renderer.setPixelRatio(Math.min(devicePixelRatio, lowEnd?1.5:2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = lowEnd?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 1000);
@@ -364,7 +364,7 @@ function addPad(x,z){ const g=new THREE.Group();
 
 // ---- 星星收集 ----
 const stars = []; let score=0; const scEl=document.getElementById('sc');
-function addStar(x,y,z){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,0), new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:0.6,roughness:0.3,metalness:0.2}));
+function addStar(x,y,z){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,0), new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:1.3,roughness:0.3,metalness:0.2}));
   m.position.set(x,y,z); m.castShadow=true; levelGroup.add(m); stars.push({m,base:y,bx:x,bz:z,spin:Math.random()*6,alive:true}); }
 
 // ============ 多关卡：程序化生成（按关号播种、保证可达 + 无重叠，防穿模）============
@@ -633,9 +633,9 @@ function addGoal(x,z,y){ const g=new THREE.Group(); g.position.set(x,y||0,z);
   const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,9,18,1,true), beamMat); beam.position.y=4.5; g.add(beam);
   levelGroup.add(g); goalMesh=g; goalMats=[baseMat,ringMat,beamMat]; }
 function openGoal(){ if(goalOpen||!goalMats) return; goalOpen=true;
-  goalMats[0].color.set(0x57e0a0); goalMats[0].emissive.set(0x2ad17a);
-  goalMats[1].color.set(0x6affc0); goalMats[1].emissive.set(0x2ad17a);
-  goalMats[2].color.set(0x9bffd0); goalMats[2].opacity=0.2;
+  goalMats[0].color.set(0x57e0a0); goalMats[0].emissive.set(0x2ad17a); goalMats[0].emissiveIntensity=0.9;
+  goalMats[1].color.set(0x6affc0); goalMats[1].emissive.set(0x2ad17a); goalMats[1].emissiveIntensity=1.5;   // 开启的终点门发亮绿光=远处灯塔
+  goalMats[2].color.set(0x9bffd0); goalMats[2].opacity=0.26;
   A.ding(1); const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='🏁 终点门已开启 → 冲！'; } }
 function buildLevelData(L){ clearLevel();
   curSpawn = (L.spawn && L.spawn.length===3) ? L.spawn.slice() : [0,3,0];
@@ -1155,7 +1155,7 @@ camera.position.set(0,6,14); camera.lookAt(0,1,0);
 const rt = new THREE.WebGLRenderTarget(innerWidth,innerHeight,{samples:lowEnd?2:4});
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene,camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), lowEnd?0.22:0.32, 0.6, 0.82));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), lowEnd?0.30:0.42, 0.72, 0.72));   // 阈值降到0.72+强度提升=星星/终点门真正发光(原0.82几乎不触发)
 composer.addPass(new OutputPass());
 function resize(){ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();
