@@ -187,6 +187,11 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
+// 安全存储：被屏蔽的第三方 iframe（Poki/CrazyGames 默认、Safari/Brave）里访问 LS 会抛 SecurityError，
+// 不兜底会导致脚本在加载期直接崩、永远卡在"载入中"。此处探测失败则退化为内存存储，保证游戏一定能启动（仅进度不持久化）。
+const LS = (()=>{ try{ const S=window['local'+'Storage']; const k='__bean_t'; S.setItem(k,k); S.removeItem(k); return S; }
+  catch(e){ const m={}; return { getItem:k=>(k in m?m[k]:null), setItem:(k,v)=>{ m[k]=String(v); }, removeItem:k=>{ delete m[k]; } }; } })();
+
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 const lowEnd = matchMedia('(pointer:coarse)').matches || (navigator.hardwareConcurrency||8)<=4;   // 手机/低端：降画质保 60fps
@@ -652,8 +657,8 @@ function buildLevelData(L){ clearLevel();
 }
 function buildLevel(idx){ levelIdx=Math.max(0,Math.min(LEVELS.length-1,idx)); dailyMode=false; buildLevelData(LEVELS[levelIdx]); }
 // 逐关进度（最佳时间/星级/解锁/下一关）——世界地图与通关庆祝都会用到
-function levelBest(i){ const b=parseFloat(localStorage.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
-function levelStars(i){ return +(localStorage.getItem('bean_lv'+i+'_stars')||0); }
+function levelBest(i){ const b=parseFloat(LS.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
+function levelStars(i){ return +(LS.getItem('bean_lv'+i+'_stars')||0); }
 function totalStarsEarned(){ let s=0; for(let i=0;i<LEVELS.length;i++) s+=levelStars(i); return s; }   // Σ每关最高星级(0-300)，不随重玩膨胀
 function levelUnlocked(i){ return true; }  // 去除关卡限制：任意关卡可直接进入查看（之前需逐关解锁）
 function nextLevel(){ if(levelIdx+1<LEVELS.length){ buildLevel(levelIdx+1); startGame(); } }
@@ -690,9 +695,9 @@ function celebrate(rating, secs, rec){
 }
 let STAR_T=[55,85];                                         // ≤55s→3★，≤85s→2★，否则1★（buildLevel 按关覆盖）
 buildLevel(0);                                              // 构建首关，设置 total/STAR_T
-let best = parseFloat(localStorage.getItem('bean_best')) || 0;
+let best = parseFloat(LS.getItem('bean_best')) || 0;
 const starStr = n => '★'.repeat(n)+'☆'.repeat(3-n);
-function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best'))||0, st=+(localStorage.getItem('bean_stars')||0), pl=+(localStorage.getItem('bean_plays')||0), tot=totalStarsEarned();
+function refreshStartStats(){ const b=parseFloat(LS.getItem('bean_best'))||0, st=+(LS.getItem('bean_stars')||0), pl=+(LS.getItem('bean_plays')||0), tot=totalStarsEarned();
   const next=SKINS.find(s=>s.need>tot);
   const l1 = b ? `最佳 <b>${b.toFixed(1)}s</b> · ${starStr(st)} · 已玩 ${pl} 局` : '首次游玩 · 收齐 '+total+' ⭐ 冲最快时间！';
   const l2 = `累计 ⭐${tot}` + (next ? ` · 距「${next.name}」还需 <b>${next.need-tot}</b>⭐` : ' · 皮肤已集齐 🎉');
@@ -702,7 +707,7 @@ function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.a
   player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; lastCamY=curSpawn[1]; camClimb=0; }
 function startGame(){ A.init(); resetRun();
   if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
-  if(!dailyMode){ try{ const g=localStorage.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
+  if(!dailyMode){ try{ const g=LS.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
   state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
 function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
 // ---- 每日挑战（按日期种子，全员同图 + 连续天数 streak）----
@@ -714,10 +719,10 @@ function genDaily(){ const dn=todayNum(); dailyDate=dn; const di=20+(dn%60);
   let L=build(dn),tr=0; while((!L||!validateCourse(L))&&tr<25){ tr++; L=build(dn+tr*97); } if(!L||!validateCourse(L)) L=genSnake(di,0);
   return Object.assign({},L,{name:'每日挑战'}); }
 function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
-  const pb=parseFloat(localStorage.getItem(key)); const rec=isNaN(pb)||secs<pb; if(rec){ try{localStorage.setItem(key,String(secs));}catch(e){} }
-  const last=+(localStorage.getItem('bean_daily_last')||0);
-  if(last!==dn){ const streak=(last===prevDayNum(dn))?(+(localStorage.getItem('bean_daily_streak')||0)+1):1; try{ localStorage.setItem('bean_daily_streak',String(streak)); localStorage.setItem('bean_daily_last',String(dn)); }catch(e){} }
-  return { best:parseFloat(localStorage.getItem(key))||secs, streak:+(localStorage.getItem('bean_daily_streak')||1), rec }; }
+  const pb=parseFloat(LS.getItem(key)); const rec=isNaN(pb)||secs<pb; if(rec){ try{LS.setItem(key,String(secs));}catch(e){} }
+  const last=+(LS.getItem('bean_daily_last')||0);
+  if(last!==dn){ const streak=(last===prevDayNum(dn))?(+(LS.getItem('bean_daily_streak')||0)+1):1; try{ LS.setItem('bean_daily_streak',String(streak)); LS.setItem('bean_daily_last',String(dn)); }catch(e){} }
+  return { best:parseFloat(LS.getItem(key))||secs, streak:+(LS.getItem('bean_daily_streak')||1), rec }; }
 function startDaily(){ A.init(); dailyMode=true; buildLevelData(genDaily()); resetRun(); state='play'; running=true;
   startEl.classList.remove('show'); winEl.classList.remove('show'); const m=document.getElementById('map'); if(m)m.classList.remove('show'); document.body.classList.add('playing');
   const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='📅 今日挑战 · 收齐 ⭐ 冲终点！'; } }
@@ -727,13 +732,13 @@ function showWin(){ running=false; state='results';
   const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1;
   if(dailyMode){ const r=recordDaily(secs); wbEl.innerHTML=(r.rec?'🏆 今日新纪录！':'今日最佳 '+r.best.toFixed(1)+'s')+' · 🔥连续 '+r.streak+' 天'; document.getElementById('next').style.display='none'; celebrate(rating,secs,r.rec); return; }
   // 逐关进度（与全局最佳/皮肤养成并存）
-  const prevLvStars=+(localStorage.getItem('bean_lv'+levelIdx+'_stars')||0);
+  const prevLvStars=+(LS.getItem('bean_lv'+levelIdx+'_stars')||0);
   try{ const bk='bean_lv'+levelIdx+'_best', sk='bean_lv'+levelIdx+'_stars';
-    const pb=parseFloat(localStorage.getItem(bk)); if(isNaN(pb)||secs<pb){ localStorage.setItem(bk,String(secs)); if(ghostRec.length>3) try{ localStorage.setItem('bean_ghost_'+levelIdx,JSON.stringify(ghostRec)); }catch(e2){} }
-    if(rating>(+(localStorage.getItem(sk)||0))) localStorage.setItem(sk,String(rating)); }catch(e){}
-  let rec=false; if(!best || secs<best){ best=secs; rec=true; try{ localStorage.setItem('bean_best',String(best)); }catch(e){} }
-  const ps=+(localStorage.getItem('bean_stars')||0); if(rating>ps){ try{ localStorage.setItem('bean_stars',String(rating)); }catch(e){} }
-  try{ localStorage.setItem('bean_plays', String((+(localStorage.getItem('bean_plays')||0))+1)); }catch(e){}
+    const pb=parseFloat(LS.getItem(bk)); if(isNaN(pb)||secs<pb){ LS.setItem(bk,String(secs)); if(ghostRec.length>3) try{ LS.setItem('bean_ghost_'+levelIdx,JSON.stringify(ghostRec)); }catch(e2){} }
+    if(rating>(+(LS.getItem(sk)||0))) LS.setItem(sk,String(rating)); }catch(e){}
+  let rec=false; if(!best || secs<best){ best=secs; rec=true; try{ LS.setItem('bean_best',String(best)); }catch(e){} }
+  const ps=+(LS.getItem('bean_stars')||0); if(rating>ps){ try{ LS.setItem('bean_stars',String(rating)); }catch(e){} }
+  try{ LS.setItem('bean_plays', String((+(LS.getItem('bean_plays')||0))+1)); }catch(e){}
   const tot=totalStarsEarned(), prevTot=tot-Math.max(0,rating-prevLvStars);   // 真实累计星(Σ每关最高星，不随重玩膨胀)
   const newSkins=SKINS.filter(s=> s.need>prevTot && s.need<=tot).map(s=>s.name);
   wbEl.innerHTML = (rec?'🏆 新纪录！':'最佳 '+best.toFixed(1)+'s') + (newSkins.length?' · 🎉解锁皮肤「'+newSkins.join('、')+'」':'');
@@ -825,7 +830,7 @@ const SKINS=[
   {name:'柠檬',   body:0xffe066, belly:0xfff3b0, arm:0xefc63f, leg:0x8a7330, need:110},
   {name:'黄金豆', body:0xffd34d, belly:0xfff1c4, arm:0xf0b400, leg:0x8a6600, need:180, gold:true},
 ];
-let skinIdx = Math.max(0, Math.min(SKINS.length-1, parseInt(localStorage.getItem('bean_skin')||'0')||0));
+let skinIdx = Math.max(0, Math.min(SKINS.length-1, parseInt(LS.getItem('bean_skin')||'0')||0));
 function applySkin(i){ if(i<0||i>=SKINS.length)i=0; const s=SKINS[i]; skinIdx=i;
   bodyMat.color.set(s.body); bellyMat.color.set(s.belly); armMat.color.set(s.arm); legMat.color.set(s.leg);
   bodyMat.emissive.set(s.gold?0x6a4a00:0x000000); bodyMat.emissiveIntensity = s.gold?0.25:0; }
@@ -834,7 +839,7 @@ function renderSkins(){ const row=document.getElementById('skinRow'); if(!row)re
     d.className='swatch'+(i===skinIdx?' sel':'')+(unlocked?'':' lock');
     d.style.background = unlocked ? '#'+s.body.toString(16).padStart(6,'0') : '#c7d0d8'; d.title=s.name;
     if(!unlocked) d.innerHTML='<span class="lk">🔒'+s.need+'</span>';
-    d.addEventListener('click',()=>{ A.init(); if(tot<s.need){ A.tone(200,0.09,'square',0.12,140); return; } applySkin(i); try{localStorage.setItem('bean_skin',String(i));}catch(e){} renderSkins(); A.collect(4); });
+    d.addEventListener('click',()=>{ A.init(); if(tot<s.need){ A.tone(200,0.09,'square',0.12,140); return; } applySkin(i); try{LS.setItem('bean_skin',String(i));}catch(e){} renderSkins(); A.collect(4); });
     row.appendChild(d); }); }
 applySkin(skinIdx); refreshStartStats();
 
@@ -858,7 +863,7 @@ function sprintDust(){ const N=5,pos=new Float32Array(N*3),vel=[];
   const p=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:0.16,transparent:true,opacity:0.55,depthWrite:false})); scene.add(p); fx.push({o:p,life:0.4,max:0.4,vel}); }
 
 // ============ 音效（Web Audio 程序化合成，无音频文件）============
-let actx=null, muted = localStorage.getItem('bean_muted')==='1';
+let actx=null, muted = LS.getItem('bean_muted')==='1';
 const A = {
   init(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } } if(actx.state==='suspended') actx.resume(); startMusic(); },
   tone(freq,dur,type,gain,slideTo){ if(!actx||muted) return; const t=actx.currentTime;
@@ -886,7 +891,7 @@ addEventListener('pointerdown',()=>A.init()); addEventListener('keydown',()=>A.i
 // 静音开关
 const muteBtn=document.getElementById('mute');
 function updateMute(){ muteBtn.textContent = muted?'🔇':'🔊'; }
-muteBtn.addEventListener('click',()=>{ muted=!muted; try{localStorage.setItem('bean_muted', muted?'1':'0');}catch(e){} updateMute(); if(musicGain) musicGain.gain.value=muted?0:0.4; if(!muted){ A.init(); A.collect(3); } });
+muteBtn.addEventListener('click',()=>{ muted=!muted; try{LS.setItem('bean_muted', muted?'1':'0');}catch(e){} updateMute(); if(musicGain) musicGain.gain.value=muted?0:0.4; if(!muted){ A.init(); A.collect(3); } });
 updateMute();
 
 // ============ 输入 ============
