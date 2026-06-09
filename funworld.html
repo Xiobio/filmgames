@@ -254,6 +254,11 @@ function buildLevel(idx){
   (L.stars||[]).forEach(s=>addStar(s[0],s[1],s[2]));
   total=stars.length; STAR_T=L.thresholds||[55,85]; scEl.textContent='0/'+total;
 }
+// 逐关进度（最佳时间/星级/解锁/下一关）——世界地图与通关庆祝都会用到
+function levelBest(i){ const b=parseFloat(localStorage.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
+function levelStars(i){ return +(localStorage.getItem('bean_lv'+i+'_stars')||0); }
+function levelUnlocked(i){ return i<=0 || levelBest(i-1)!==null; }
+function nextLevel(){ if(levelIdx+1<LEVELS.length){ buildLevel(levelIdx+1); startGame(); } }
 
 // ---- 完整游戏流程：标题 → 游戏 → 三星结算 → 再玩 / 返回 ----
 let total = 0;                                              // 当前关星星总数（buildLevel 设置）
@@ -282,6 +287,10 @@ function showWin(){ running=false; state='results';
   const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
   wbonusEl.textContent = bonus>0 ? `原始 ${raw.toFixed(1)}s − 连击奖励 ${bonus.toFixed(1)}s` : `用时 ${raw.toFixed(1)}s`;
   const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1; wsEl.textContent=starStr(rating);
+  // 逐关进度（与全局最佳/皮肤养成并存）
+  try{ const bk='bean_lv'+levelIdx+'_best', sk='bean_lv'+levelIdx+'_stars';
+    const pb=parseFloat(localStorage.getItem(bk)); if(isNaN(pb)||secs<pb) localStorage.setItem(bk,String(secs));
+    if(rating>(+(localStorage.getItem(sk)||0))) localStorage.setItem(sk,String(rating)); }catch(e){}
   let rec=false; if(!best || secs<best){ best=secs; rec=true; try{ localStorage.setItem('bean_best',String(best)); }catch(e){} }
   const ps=+(localStorage.getItem('bean_stars')||0); if(rating>ps){ try{ localStorage.setItem('bean_stars',String(rating)); }catch(e){} }
   try{ localStorage.setItem('bean_plays', String((+(localStorage.getItem('bean_plays')||0))+1)); }catch(e){}
@@ -564,7 +573,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
