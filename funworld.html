@@ -242,6 +242,32 @@ function addPlatform(x,z,w,d,h,color){
   return m;
 }
 
+// ---- 可行走斜坡（楔形，沿 axis 从 loY 升到 hiY，能顺着走上/下，制造真实高低起伏）----
+function rampTop(s,x,z){ let t = s.axis==='x' ? (x-s.minX)/(s.maxX-s.minX) : (z-s.minZ)/(s.maxZ-s.minZ);
+  t=t<0?0:t>1?1:t; return s.loY+(s.hiY-s.loY)*t; }
+function addRamp(x,z,w,d,loY,hiY,axis,color){
+  loY=Math.max(0.05,loY); const run = axis==='x'?w:d, depth = axis==='x'?d:w;
+  const shape = new THREE.Shape();
+  shape.moveTo(0,0); shape.lineTo(run,0); shape.lineTo(run,hiY); shape.lineTo(0,loY); shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:false}); geo.translate(0,0,-depth/2);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color,roughness:0.74}));
+  m.castShadow=m.receiveShadow=true;
+  if(axis==='x'){ m.position.set(x-w/2,0,z); } else { m.rotation.y=-Math.PI/2; m.position.set(x,0,z-d/2); }
+  levelGroup.add(m);
+  solids.push({ ramp:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, loY, hiY, axis, top:hiY });
+  return m;
+}
+
+// ---- 升降梯（垂直上下移动的平台，可站上去被带升降，制造立体路线）----
+const lifts = [];
+function addLift(x,z,w,d,loTop,hiTop,spd,color){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.5,d),
+    new THREE.MeshStandardMaterial({color,roughness:0.5,emissive:color,emissiveIntensity:0.1}));
+  m.position.set(x,loTop-0.25,z); m.castShadow=m.receiveShadow=true; levelGroup.add(m);
+  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:loTop };
+  solids.push(s); lifts.push({ mesh:m, s, loTop, hiTop, spd, ph:lifts.length*1.3 });
+}
+
 // ---- 移动平台（会左右滑动，可站上去乘坐）----
 const movers = [];
 function addMover(x,z,w,d,h,color,axis,range,spd){
@@ -264,6 +290,21 @@ function addSpinner(x,z,len,spd,barH){
   const bar=new THREE.Mesh(new THREE.BoxGeometry(len,0.5,0.5), new THREE.MeshStandardMaterial({color:0xff6f91,roughness:0.5,emissive:0xff2e63,emissiveIntensity:0.14})); bar.castShadow=true; arm.add(bar);
   for(const e of [-1,1]){ const ball=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,12), new THREE.MeshStandardMaterial({color:0xffd34d,roughness:0.4,emissive:0xffb000,emissiveIntensity:0.22})); ball.position.x=e*len/2; ball.castShadow=true; arm.add(ball); }
   spinners.push({ x, z, len, spd, barH, ang:0, cd:0, arm });
+}
+
+// ---- 摆锤（吊在高处来回摆动的大锤，撞到弹飞，需卡时机穿过）----
+const pendulums = [];
+function addPendulum(x,z,H,Larm,amp,spd,axis,color){
+  // 从高处悬挂（不落地，避免穿过下方平台）：枢轴枢纽 + 上方短支柱
+  const hub=new THREE.Mesh(new THREE.SphereGeometry(0.3,14,10), new THREE.MeshStandardMaterial({color:0xcfd8e0,roughness:0.6,metalness:0.3}));
+  hub.position.set(x,H,z); levelGroup.add(hub);
+  const stub=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,1.2,10), new THREE.MeshStandardMaterial({color:0xfff1d6,roughness:0.9}));
+  stub.position.set(x,H+0.6,z); levelGroup.add(stub);
+  const arm=new THREE.Group(); arm.position.set(x,H,z); levelGroup.add(arm);
+  const rod=new THREE.Mesh(new THREE.BoxGeometry(0.16,Larm,0.16), new THREE.MeshStandardMaterial({color:0xcfd8e0,roughness:0.6})); rod.position.y=-Larm/2; arm.add(rod);
+  const ballR=0.9;
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(ballR,18,14), new THREE.MeshStandardMaterial({color:color||0xff6f91,roughness:0.4,emissive:0xff2e63,emissiveIntensity:0.18})); ball.position.y=-Larm; ball.castShadow=true; arm.add(ball);
+  pendulums.push({ x, z, H, Larm, amp, spd, axis, arm, ballR, ph:pendulums.length*1.1, cd:0, ang:0 });
 }
 
 // ---- 装饰：糖果色障碍 + 云 ----
@@ -392,6 +433,21 @@ function validateLevel(L){
 }
 const LEVELS=[];
 for(let i=0;i<100;i++){ let L=genLevel(i,0), tr=0; while(!validateLevel(L) && tr<30){ L=genLevel(i, tr+1); tr++; } LEVELS.push(L); }
+// ★ 示范赛道（手工精修，演示"有高低起伏/不同路线/多机关"的新地形方向）——直接替换第1关
+const SHOWCASE = {
+  name:'冲冲冲赛道 · 示范', world:0, arenaR:26, thresholds:[50,90],
+  platforms:[ [0,12.5, 7,6, 3.0, 0xffd36e], [0,23, 7,5, 5.6, 0xc7a3ff] ],
+  ramps:[ [0,6, 6,7, 0.1,3.0, 'z', 0x9bd0ff], [0,18, 6,5, 3.0,5.6, 'z', 0x7cc7ff] ],
+  lifts:[ [6,12.5, 3.5,3.5, 3.0,6.5, 1.1, 0xffe08a] ],
+  movers:[ [-8,3, 3,3, 1.0, 0xff8fb0, 'x', 4, 0.5] ],
+  spinners:[ [0,-7, 7, 1.4, 1.1] ],
+  pendulums:[ [0,11, 6.5,2.4, 0.95,1.7, 'x', 0xff6f91], [0,21.5, 9,2.2, 0.9,2.0, 'x', 0xb39bff] ],
+  pads:[ [8,3] ],
+  stars:[ [5,1.2,1],[-5,1.2,1],[-3,1.2,-5],[3,1.2,-5],[0,1.2,-11],
+          [-8,1.8,3],[8,5.0,3],[0,4.1,12.5],[6,7.5,12.5],[0,5.3,18],[0,6.7,22] ],
+  goalPos:[0,5.6,23],
+};
+LEVELS[0]=SHOWCASE;
 let levelIdx = 0, curGoal=null, goalMesh=null, goalMats=null, goalOpen=false, goalCd=0, curIslandR=30, dailyMode=false, dailyDate=0;
 let ghostRec=[], ghostPlay=null, ghostMesh=null, ghostLastSample=-999;   // 幽灵：录制最佳跑动轨迹，重玩时半透明对手同跑
 function makeGhost(){ const m=new THREE.Mesh(new THREE.CapsuleGeometry(0.46,0.6,6,12), new THREE.MeshBasicMaterial({color:0xaee8ff,transparent:true,opacity:0.34,depthWrite:false})); m.renderOrder=2; scene.add(m); return m; }
@@ -399,9 +455,9 @@ function clearLevel(){ goalMesh=null; goalMats=null; if(ghostMesh){ scene.remove
   for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
     o.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
     levelGroup.remove(o); }
-  movers.length=0; spinners.length=0; pads.length=0; stars.length=0; solids.length=baseCount;
+  movers.length=0; spinners.length=0; pads.length=0; stars.length=0; lifts.length=0; pendulums.length=0; solids.length=baseCount;
 }
-function addGoal(x,z){ const g=new THREE.Group(); g.position.set(x,0,z);
+function addGoal(x,z,y){ const g=new THREE.Group(); g.position.set(x,y||0,z);
   const baseMat=new THREE.MeshStandardMaterial({color:0xff7a8a,emissive:0xc23048,emissiveIntensity:0.3,roughness:0.4});
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.8,0.4,22), baseMat); base.position.y=0.2; base.receiveShadow=true; g.add(base);
   const ringMat=new THREE.MeshStandardMaterial({color:0xff8a9a,emissive:0xd63048,emissiveIntensity:0.6,roughness:0.25});
@@ -416,11 +472,14 @@ function openGoal(){ if(goalOpen||!goalMats) return; goalOpen=true;
   A.ding(1); const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='🏁 终点门已开启 → 冲！'; } }
 function buildLevelData(L){ clearLevel();
   (L.platforms||[]).forEach(p=>addPlatform(p[0],p[1],p[2],p[3],p[4],p[5]));
+  (L.ramps||[]).forEach(r=>addRamp(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7]));
+  (L.lifts||[]).forEach(l=>addLift(l[0],l[1],l[2],l[3],l[4],l[5],l[6],l[7]));
   (L.movers||[]).forEach(m=>addMover(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8]));
   (L.spinners||[]).forEach(s=>addSpinner(s[0],s[1],s[2],s[3],s[4]));
+  (L.pendulums||[]).forEach(p=>addPendulum(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]));
   (L.pads||[]).forEach(p=>addPad(p[0],p[1]));
   (L.stars||[]).forEach(s=>addStar(s[0],s[1],s[2]));
-  curGoal=L.goalPos||[20,0,0]; goalOpen=false; goalCd=0; addGoal(curGoal[0],curGoal[2]);
+  curGoal=L.goalPos||[20,0,0]; goalOpen=false; goalCd=0; addGoal(curGoal[0],curGoal[2],curGoal[1]||0);
   const obj=document.getElementById('obj'); if(obj){ obj.classList.remove('warn'); obj.textContent='🏁 收齐全部 ⭐ 再冲终点！'; }
   total=stars.length; STAR_T=L.thresholds||[55,85]; scEl.textContent='0/'+total;
   const gc=GROUND[L.world||0]; island.material.color.set(gc[0]); grass.material.color.set(gc[1]);   // 按世界换地色
@@ -709,6 +768,12 @@ function tick(dt){
     mv.s.minX=nx-mv.hw; mv.s.maxX=nx+mv.hw; mv.s.minZ=nz-mv.hd; mv.s.maxZ=nz+mv.hd;
     if(groundSolid===mv.s){ player.position.x+=dx; player.position.z+=dz; }
   }
+  // —— 升降梯：竖直上下，若正踩着则把豆豆一起带升降 ——
+  for(const lf of lifts){
+    const c=(lf.loTop+lf.hiTop)/2, amp=(lf.hiTop-lf.loTop)/2, top=c+Math.sin(clock*lf.spd+lf.ph)*amp;
+    const dy=top-lf.s.top; lf.s.top=top; lf.mesh.position.y=top-0.25;
+    if(groundSolid===lf.s){ player.position.y+=dy; }
+  }
   if(state==='menu') camYaw += dt*0.12;                 // 标题页：缓慢环绕展示场景
   if(state==='play' && stun<=0){
     _f.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); _r.set(-_f.z,0,_f.x); _w.set(0,0,0);
@@ -725,6 +790,7 @@ function tick(dt){
   player.position.x+=vel.x*dt; player.position.z+=vel.z*dt;
   const feet=player.position.y;
   for(const s of solids){
+    if(s.ramp) continue;                            // 斜坡：可顺着走上去，不当墙阻挡
     if(s.top<=feet+STEP) continue;                 // 够矮可踩上/跨过，不当墙
     if(s.box){
       const cx=Math.max(s.minX,Math.min(player.position.x,s.maxX));
@@ -747,6 +813,12 @@ function tick(dt){
   vy-=G*dt; player.position.y+=vy*dt;
   let support=(Math.hypot(player.position.x,player.position.z)<curIslandR)?0:-999, supSolid=null;   // 岛面（按关变大小）
   for(const s of solids){
+    if(s.ramp){   // 斜坡：用当前位置处的坡面高度当支撑（容差放宽到 0.55，斜面上下行走顺滑、不会从下方被顶上去）
+      const inFp = player.position.x>=s.minX-PR && player.position.x<=s.maxX+PR && player.position.z>=s.minZ-PR && player.position.z<=s.maxZ+PR;
+      const stop = rampTop(s,player.position.x,player.position.z);
+      if(inFp && prevFeet>=stop-0.55 && stop>support){ support=stop; supSolid=s; }
+      continue;
+    }
     const over = s.box
       ? (player.position.x>=s.minX-PR && player.position.x<=s.maxX+PR && player.position.z>=s.minZ-PR && player.position.z<=s.maxZ+PR)
       : (Math.hypot(player.position.x-s.x,player.position.z-s.z) < s.r+PR);
@@ -759,7 +831,7 @@ function tick(dt){
   if(player.position.y<-20){ player.position.set(0,2,0); vy=0; }   // 掉出去复位
   if(goalCd>0) goalCd-=dt;
   if(goalMesh){ goalMesh.rotation.y += dt*1.4;
-    if(state==='play' && curGoal && Math.hypot(player.position.x-curGoal[0],player.position.z-curGoal[2])<1.9 && player.position.y<2.6){
+    if(state==='play' && curGoal && Math.hypot(player.position.x-curGoal[0],player.position.z-curGoal[2])<1.9 && Math.abs(player.position.y-(curGoal[1]||0))<2.6){
       if(score>=total){ if(running) showWin(); }
       else if(goalCd<=0){ goalCd=1.0;   // 未集齐就到终点 → 惩罚：击退 + 扣时间 + 提示
         const dx=player.position.x-curGoal[0], dz=player.position.z-curGoal[2], d=Math.hypot(dx,dz)||1;
@@ -783,6 +855,18 @@ function tick(dt){
     if(Math.abs(along)>spn.len/2 || Math.abs(perp)>0.45+PR) continue;
     const s=Math.sign(perp)||1;                        // 命中：沿横杆垂直方向扫飞 + 上抛 + 短硬直
     vel.x=sa*s*15; vel.z=ca*s*15; vy=8.5; grounded=false; squashV=7; stun=0.35; spn.cd=0.5; A.hit();
+  }
+  // 摆锤：摆动 + 命中弹飞（卡时机从锤经过后穿过）
+  for(const pe of pendulums){
+    pe.ang=Math.sin(clock*pe.spd+pe.ph)*pe.amp;
+    if(pe.axis==='x') pe.arm.rotation.z=pe.ang; else pe.arm.rotation.x=pe.ang;
+    if(state!=='play'){ continue; } if(pe.cd>0){ pe.cd-=dt; continue; }
+    const bx = pe.axis==='x' ? pe.x+Math.sin(pe.ang)*pe.Larm : pe.x;
+    const bz = pe.axis==='z' ? pe.z-Math.sin(pe.ang)*pe.Larm : pe.z;
+    const by = pe.H-Math.cos(pe.ang)*pe.Larm;
+    const dd=Math.hypot(player.position.x-bx, (player.position.y+0.7)-by, player.position.z-bz);
+    if(dd < pe.ballR+PR+0.15){ const hx=player.position.x-bx, hz=player.position.z-bz, hl=Math.hypot(hx,hz)||1;
+      vel.x=hx/hl*15; vel.z=hz/hl*15; vy=8; grounded=false; squashV=7; stun=0.35; pe.cd=0.5; A.hit(); }
   }
   // 朝向
   const sp=Math.hypot(vel.x,vel.z);
