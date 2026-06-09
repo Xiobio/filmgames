@@ -264,7 +264,7 @@ function addLift(x,z,w,d,loTop,hiTop,spd,color){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.5,d),
     new THREE.MeshStandardMaterial({color,roughness:0.5,emissive:color,emissiveIntensity:0.1}));
   m.position.set(x,loTop-0.25,z); m.castShadow=m.receiveShadow=true; levelGroup.add(m);
-  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:loTop };
+  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:loTop, dyn:true };
   solids.push(s); lifts.push({ mesh:m, s, loTop, hiTop, spd, ph:lifts.length*1.3 });
 }
 
@@ -274,7 +274,7 @@ function addMover(x,z,w,d,h,color,axis,range,spd){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
     new THREE.MeshStandardMaterial({ color, roughness:0.55, emissive:color, emissiveIntensity:0.06 }));
   m.position.set(x,h/2,z); m.castShadow=m.receiveShadow=true; levelGroup.add(m);
-  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h };
+  const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h, dyn:true };
   solids.push(s);
   movers.push({ mesh:m, s, bx:x, bz:z, hw:w/2, hd:d/2, axis, range, spd, ph:movers.length*1.7 });
   return m;
@@ -431,15 +431,75 @@ function validateLevel(L){
     if(!ok) return false; }
   return (L.stars||[]).length>=4;
 }
+// ============ 赛道生成器：蛇形爬升障碍赛道（逐关变长变难；斜坡连通保证可达；自检防穿模）============
+function genCourse(idx, salt){
+  const rng = mulberry32((((idx+1)*2654435761) ^ ((salt||0)*40503))>>>0);
+  const world = Math.min(9,Math.floor(idx/10)), t = idx/99, pal = PALETTES[world];
+  const col = ()=> pal[(rng()*pal.length)|0];
+  const cols = (rng() < 0.4 + t*0.25) ? 3 : 2;
+  const rows = 3 + Math.round(t*5 + rng()*1.3);                       // 赛道更长：早期3行 → 后期~8-9行
+  const cell = 5.5, psize = +Math.max(2.9, Math.min(3.8, 3.5 - t*0.4 + rng()*0.3)).toFixed(2);   // 后期平台更窄=更难
+  const cellsN = cols*rows;
+  const hStep = Math.max(0.7, Math.min(1.9, (4 + t*15)/(cellsN-1)));  // 总高度随难度升，长赛道自动放缓每级坡度
+  // 蛇形遍历网格（居中），逐格升高
+  const path=[]; let h=0;
+  for(let r=0;r<rows;r++){ const cs=[]; for(let c=0;c<cols;c++) cs.push(c); if(r%2===1) cs.reverse();
+    for(const c of cs){ path.push({ x:+((c-(cols-1)/2)*cell).toFixed(2), z:+((r-(rows-1)/2)*cell).toFixed(2), top:h }); h+=hStep; } }
+  path[0].top = 0;                                                    // 起点格落地
+  const platforms=[], ramps=[], movers=[], spinners=[], pendulums=[], pads=[], lifts=[], stars=[];
+  const ptopOf = p => Math.max(0.6, +(+p.top).toFixed(2));
+  const moverCells = new Set();                                       // 后期把若干中段"直行格"做成移动平台
+  const isStraight = (i)=>{ if(i<=0||i>=path.length-1) return false;   // 只在进出同向的直行格放移动平台，滑动方向才能垂直于两侧斜坡、不重叠
+    const inAx = Math.abs(path[i].x-path[i-1].x)>0.1?'x':'z', outAx = Math.abs(path[i+1].x-path[i].x)>0.1?'x':'z';
+    return inAx===outAx; };
+  if(world>=4){ const nm = 1 + Math.round(t*2);
+    for(let k=0;k<nm;k++){ const ci = 2 + ((rng()*(path.length-3))|0); if(isStraight(ci)) moverCells.add(ci); } }
+  for(let i=0;i<path.length;i++){ const p=path[i], ptop=ptopOf(p);
+    if(moverCells.has(i)){ const a=path[i-1]; const axis = (Math.abs(p.x-a.x)>0.1)?'z':'x';   // 垂直来路方向滑动
+      movers.push([p.x,p.z,psize,psize,ptop,col(),axis,+(0.8+t*0.4).toFixed(1),+(0.4+t*0.4).toFixed(2)]);
+    } else platforms.push([p.x,p.z,psize,psize,ptop,col()]);
+    stars.push([p.x,+(ptop+1.0).toFixed(2),p.z]);
+    if(i>0){ const a=path[i-1], aTop=ptopOf(a), bTop=ptop;
+      if(Math.abs(p.x-a.x)>0.1){ const lo=Math.min(a.x,p.x), hi=Math.max(a.x,p.x), x0=lo+psize/2, x1=hi-psize/2;
+        ramps.push([+((x0+x1)/2).toFixed(2), a.z, +(x1-x0).toFixed(2), psize, +((a.x<p.x?aTop:bTop)).toFixed(2), +((a.x<p.x?bTop:aTop)).toFixed(2), 'x', col()]);
+      } else { const lo=Math.min(a.z,p.z), hi=Math.max(a.z,p.z), z0=lo+psize/2, z1=hi-psize/2;
+        ramps.push([a.x, +((z0+z1)/2).toFixed(2), psize, +(z1-z0).toFixed(2), +((a.z<p.z?aTop:bTop)).toFixed(2), +((a.z<p.z?bTop:aTop)).toFixed(2), 'z', col()]); } }
+  }
+  const last=path[path.length-1], lastTop=ptopOf(last), goalPos=[last.x,lastTop,last.z];
+  if(world>=2){ spinners.push([path[0].x, path[0].z, +(5+rng()*2+t*1.5).toFixed(1), +((1.2+t*1.3)*(rng()<0.5?1:-1)).toFixed(2), 1.1]); }
+  if(world>=3){ const nP = 1 + Math.round((world-2)*0.4 + t*3.5);     // 摆锤数量随难度增多
+    const ids=[]; for(let k=1;k<path.length-1;k++) if(!moverCells.has(k)) ids.push(k);
+    for(let k=ids.length-1;k>0;k--){ const j=(rng()*(k+1))|0; const tm=ids[k]; ids[k]=ids[j]; ids[j]=tm; }
+    for(let n=0;n<nP && n<ids.length;n++){ const ci=ids[n], p=path[ci], a=path[ci-1], ptop=ptopOf(p);
+      const axis = Math.abs(p.x-a.x)>0.1?'x':'z';
+      pendulums.push([p.x,p.z,+(ptop+3.6).toFixed(2),2.4,+(0.8+rng()*0.3).toFixed(2),+((1.4+t*1.2)*(rng()<0.5?1:-1)).toFixed(2),axis,0xff6f91]); } }
+  const numStars=stars.length;
+  const t3=Math.round(numStars*4.5+path.length*2+pendulums.length*2.5), t2=Math.round(numStars*8+path.length*3.5+pendulums.length*4.5);
+  const maxR=Math.max.apply(null, path.map(p=>Math.hypot(p.x,p.z)));
+  return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, arenaR:+(maxR+5).toFixed(1), thresholds:[t3,t2],
+    spawn:[path[0].x, 3, path[0].z], platforms, ramps, movers, spinners, pendulums, pads, lifts, stars, goalPos };
+}
+// 自检：所有矩形足迹无重叠（贴边相接不算）；星数足够（可达性由斜坡连通+蛇形顺序天然保证）
+function validateCourse(L){
+  if(!L.goalPos || (L.stars||[]).length<4) return false;
+  const boxes=[]; const addBox=(x,z,w,d)=>boxes.push([x-w/2,x+w/2,z-d/2,z+d/2]);
+  (L.platforms||[]).forEach(p=>addBox(p[0],p[1],p[2],p[3]));
+  (L.ramps||[]).forEach(r=>addBox(r[0],r[1],r[2],r[3]));
+  (L.lifts||[]).forEach(l=>addBox(l[0],l[1],l[2],l[3]));
+  (L.movers||[]).forEach(m=>{ const ex=m[6]==='x'?m[7]:0, ez=m[6]==='z'?m[7]:0; addBox(m[0],m[1],m[2]+ex*2,m[3]+ez*2); });
+  for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){ const a=boxes[i],b=boxes[j];
+    if(a[0]<b[1]-0.2 && a[1]>b[0]+0.2 && a[2]<b[3]-0.2 && a[3]>b[2]+0.2) return false; }
+  return true;
+}
 const LEVELS=[];
-for(let i=0;i<100;i++){ let L=genLevel(i,0), tr=0; while(!validateLevel(L) && tr<30){ L=genLevel(i, tr+1); tr++; } LEVELS.push(L); }
+for(let i=0;i<100;i++){ let L=genCourse(i,0), tr=0; while(!validateCourse(L) && tr<40){ L=genCourse(i, tr+1); tr++; } LEVELS.push(L); }
 // ★ 示范赛道（手工精修，演示"有高低起伏/不同路线/多机关"的新地形方向）——直接替换第1关
 const SHOWCASE = {
   name:'冲冲冲赛道 · 示范', world:0, arenaR:26, thresholds:[50,90],
   platforms:[ [0,12.5, 7,6, 3.0, 0xffd36e], [0,23, 7,5, 5.6, 0xc7a3ff] ],
   ramps:[ [0,6, 6,7, 0.1,3.0, 'z', 0x9bd0ff], [0,18, 6,5, 3.0,5.6, 'z', 0x7cc7ff] ],
   lifts:[ [6,12.5, 3.5,3.5, 3.0,6.5, 1.1, 0xffe08a] ],
-  movers:[ [-8,3, 3,3, 1.0, 0xff8fb0, 'x', 4, 0.5] ],
+  movers:[ [-9,3, 3,3, 1.0, 0xff8fb0, 'x', 3, 0.5] ],
   spinners:[ [0,-7, 7, 1.4, 1.1] ],
   pendulums:[ [0,11, 6.5,2.4, 0.95,1.7, 'x', 0xff6f91], [0,21.5, 9,2.2, 0.9,2.0, 'x', 0xb39bff] ],
   pads:[ [8,3] ],
@@ -448,7 +508,7 @@ const SHOWCASE = {
   goalPos:[0,5.6,23],
 };
 LEVELS[0]=SHOWCASE;
-let levelIdx = 0, curGoal=null, goalMesh=null, goalMats=null, goalOpen=false, goalCd=0, curIslandR=30, dailyMode=false, dailyDate=0;
+let levelIdx = 0, curGoal=null, goalMesh=null, goalMats=null, goalOpen=false, goalCd=0, curIslandR=30, dailyMode=false, dailyDate=0, curSpawn=[0,3,0], curCheckpoint=null;
 let ghostRec=[], ghostPlay=null, ghostMesh=null, ghostLastSample=-999;   // 幽灵：录制最佳跑动轨迹，重玩时半透明对手同跑
 function makeGhost(){ const m=new THREE.Mesh(new THREE.CapsuleGeometry(0.46,0.6,6,12), new THREE.MeshBasicMaterial({color:0xaee8ff,transparent:true,opacity:0.34,depthWrite:false})); m.renderOrder=2; scene.add(m); return m; }
 function clearLevel(){ goalMesh=null; goalMats=null; if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
@@ -471,6 +531,7 @@ function openGoal(){ if(goalOpen||!goalMats) return; goalOpen=true;
   goalMats[2].color.set(0x9bffd0); goalMats[2].opacity=0.2;
   A.ding(1); const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='🏁 终点门已开启 → 冲！'; } }
 function buildLevelData(L){ clearLevel();
+  curSpawn = (L.spawn && L.spawn.length===3) ? L.spawn.slice() : [0,3,0];
   (L.platforms||[]).forEach(p=>addPlatform(p[0],p[1],p[2],p[3],p[4],p[5]));
   (L.ramps||[]).forEach(r=>addRamp(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7]));
   (L.lifts||[]).forEach(l=>addLift(l[0],l[1],l[2],l[3],l[4],l[5],l[6],l[7]));
@@ -534,7 +595,7 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(0,3,0); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; }
+  player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; }
 function startGame(){ A.init(); resetRun();
   if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
   if(!dailyMode){ try{ const g=localStorage.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
@@ -543,7 +604,7 @@ function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats();
 // ---- 每日挑战（按日期种子，全员同图 + 连续天数 streak）----
 function todayNum(){ const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
 function prevDayNum(dn){ const d=new Date(Math.floor(dn/10000),(Math.floor(dn/100)%100)-1,dn%100); d.setDate(d.getDate()-1); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
-function genDaily(){ const dn=todayNum(); dailyDate=dn; let L=genLevel(20+(dn%60),dn),tr=0; while(!validateLevel(L)&&tr<25){ L=genLevel(20+(dn%60),dn+9999*(tr+1)); tr++; } return Object.assign({},L,{name:'每日挑战'}); }
+function genDaily(){ const dn=todayNum(); dailyDate=dn; let L=genCourse(20+(dn%60),dn),tr=0; while(!validateCourse(L)&&tr<25){ L=genCourse(20+(dn%60),dn+9999*(tr+1)); tr++; } return Object.assign({},L,{name:'每日挑战'}); }
 function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
   const pb=parseFloat(localStorage.getItem(key)); const rec=isNaN(pb)||secs<pb; if(rec){ try{localStorage.setItem(key,String(secs));}catch(e){} }
   const last=+(localStorage.getItem('bean_daily_last')||0);
@@ -827,8 +888,12 @@ function tick(dt){
   if(player.position.y<=support+0.001 && vy<=0){
     if(!grounded){ squashV=-Math.min(9,Math.abs(vy)*0.9); landPuff(); if(Math.abs(vy)>2) A.land(); }
     player.position.y=support; vy=0; grounded=true; groundSolid=supSolid;
+    if(state==='play' && supSolid && supSolid.box && !supSolid.dyn && supSolid.top>0.6)   // 站上静态高台=记录检查点
+      curCheckpoint=[(supSolid.minX+supSolid.maxX)/2, supSolid.top+0.3, (supSolid.minZ+supSolid.maxZ)/2];
+    else if(state==='play' && !supSolid && curCheckpoint && curCheckpoint[1]>1.6){          // 跌回岛面=掉出赛道 → 弹回上一个检查点（长赛道才公平）
+      player.position.set(curCheckpoint[0],curCheckpoint[1],curCheckpoint[2]); vel.set(0,0,0); vy=0; grounded=false; landPuff(); A.land(); }
   } else { grounded=false; groundSolid=null; }
-  if(player.position.y<-20){ player.position.set(0,2,0); vy=0; }   // 掉出去复位
+  if(player.position.y<-20){ const rp=curCheckpoint||curSpawn; player.position.set(rp[0],Math.max(2,rp[1]),rp[2]); vy=0; vel.set(0,0,0); }   // 掉出去复位到检查点(无则起点)
   if(goalCd>0) goalCd-=dt;
   if(goalMesh){ goalMesh.rotation.y += dt*1.4;
     if(state==='play' && curGoal && Math.hypot(player.position.x-curGoal[0],player.position.z-curGoal[2])<1.9 && Math.abs(player.position.y-(curGoal[1]||0))<2.6){
@@ -931,7 +996,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
