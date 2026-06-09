@@ -699,7 +699,7 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; }
+  player.position.set(curSpawn[0],curSpawn[1],curSpawn[2]); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; ghostRec=[]; ghostLastSample=-999; curCheckpoint=null; lastCamY=curSpawn[1]; camClimb=0; }
 function startGame(){ A.init(); resetRun();
   if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
   if(!dailyMode){ try{ const g=localStorage.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
@@ -894,6 +894,7 @@ const keys={};
 addEventListener('keydown',e=>{ keys[e.code]=true; if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault(); });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 let dragging=false,lx=0,ly=0,camYaw=0.4,camPitch=0.5,camDist=10;
+let lastCamY=0, camClimb=0;   // 相机随爬升抬高视线：上坡/上升时多看到上方平台，下降时略看下方
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{ if(e.button===2){dragging=true;lx=e.clientX;ly=e.clientY;} });
 addEventListener('mouseup',()=>dragging=false);
@@ -1072,8 +1073,11 @@ function tick(dt){
   bean.rotation.x = Math.min(0.25, sp*0.02) + (grounded?Math.sin(walkPh)*0.02*ws:0);
   if(grounded&&sp<0.3){ const b=Math.sin(performance.now()*0.003); bean.position.y=b*0.03; body.position.y=0.92+b*0.02; }
   else bean.position.y=0;
-  // 相机
-  _tgt.set(player.position.x+vel.x*0.08, player.position.y+1.2, player.position.z+vel.z*0.08);
+  // 相机：随爬升抬高视线（揭示上方平台），下降略低；竖直跑酷更易看清前路
+  const climbRate = Math.max(-30, Math.min(30, (player.position.y-lastCamY)/Math.max(1e-4,dt))); lastCamY=player.position.y;
+  camClimb += (climbRate - camClimb)*Math.min(1,dt*3);
+  const lookUp = Math.max(-0.5, Math.min(2.4, camClimb*0.3));
+  _tgt.set(player.position.x+vel.x*0.08, player.position.y+1.2+lookUp, player.position.z+vel.z*0.08);
   _off.set(Math.sin(camYaw)*Math.cos(camPitch),Math.sin(camPitch),Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
   _goal.copy(_tgt).add(_off); camera.position.lerp(_goal,Math.min(1,8*dt)); camera.lookAt(_tgt);
   // 星星（磁吸 + 收集）：横向接近自动吸入，垂直加权避免从下方吸走高处的星
