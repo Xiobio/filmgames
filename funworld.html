@@ -109,6 +109,12 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 /* HUD 仅游戏进行中显示 */
 #title,#score,#timer,#hint{opacity:0;transition:opacity .35s}
 body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{opacity:1}
+#obj{position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:3;font-weight:800;font-size:16px;color:#2ea87a;
+  background:rgba(255,255,255,.88);border-radius:18px;padding:5px 16px;box-shadow:0 3px 8px rgba(0,0,0,.1);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#obj:empty{display:none}
+#obj.warn{color:#fff;background:#ff5a6e;animation:objShake .12s 3}
+@keyframes objShake{0%,100%{transform:translateX(-50%)}30%{transform:translateX(calc(-50% - 5px))}70%{transform:translateX(calc(-50% + 5px))}}
+body.playing #obj{opacity:1}
 /* 连击 HUD + 浮动反馈 */
 #combo{position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:3;font-weight:800;font-size:26px;color:#ff4f86;
   text-shadow:0 2px 0 #fff,0 4px 10px rgba(0,0,0,.18);opacity:0;pointer-events:none;font-variant-numeric:tabular-nums}
@@ -143,6 +149,7 @@ body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{o
 <div id="score"><span class="star">⭐</span><span id="sc">0/10</span></div>
 <div id="timer">⏱ <span id="tm">0.0</span>s</div>
 <div id="combo"></div>
+<div id="obj"></div>
 <button id="mute" title="音效开关">🔊</button>
 <div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
 <div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
@@ -301,6 +308,11 @@ function genLevel(idx, salt){
   const free=(x,z,r)=>{ if(Math.hypot(x,z)<5) return false; if(Math.hypot(x,z)>R-r-0.5) return false; for(const p of placed){ if(Math.hypot(x-p.x,z-p.z)<r+p.r+1.0) return false; } return true; };
   const spot=(r)=>{ for(let k=0;k<60;k++){ const a=rng()*6.2832, rad=5+rng()*(R-5-r); const x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,r)){ placed.push({x,z,r}); return [x,z]; } } return null; };
   const platforms=[],movers=[],spinners=[],pads=[],stars=[]; let remaining=numStars;
+  // 终点门：每关都有，先在远处地面占一个位（带兜底，保证一定有终点）
+  let goalPos=null;
+  for(let k=0;k<50 && !goalPos;k++){ const a=rng()*6.2832, rad=R-3-rng()*2.5, x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,2.2)){ placed.push({x,z,r:2.2}); goalPos=[x,0,z]; } }
+  if(!goalPos){ const s=spot(2.2); if(s) goalPos=[s[0],0,s[1]]; }
+  if(!goalPos) goalPos=[+(R-5).toFixed(2),0,0];
   // 地面星
   const groundN=Math.max(1,Math.round(numStars*(0.45-t*0.28)));
   for(let i=0;i<groundN&&remaining>0;i++){ const s=spot(1.1); if(s){ stars.push([s[0],1.2,s[1]]); remaining--; } }
@@ -320,7 +332,7 @@ function genLevel(idx, salt){
   const padTarget=useSprings?Math.round(1.5+t*1.5):1;
   for(let i=pads.length;i<padTarget;i++){ const s=spot(1.8); if(s) pads.push([s[0],s[1]]); }
   const t3=Math.round(numStars*4+R*0.4+numSpinners*2.5), t2=Math.round(numStars*7+R*0.7+numSpinners*4.5);
-  return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, thresholds:[t3,t2], platforms, movers, spinners, pads, stars };
+  return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, arenaR:+R.toFixed(1), thresholds:[t3,t2], platforms, movers, spinners, pads, stars, goalPos };
 }
 // 自检：无重叠几何（防穿模）+ 每颗星可达
 function validateLevel(L){
@@ -328,6 +340,7 @@ function validateLevel(L){
   (L.movers||[]).forEach(m=>fp.push({x:m[0],z:m[1],r:Math.max(m[2],m[3])/2+m[7]}));
   (L.spinners||[]).forEach(s=>fp.push({x:s[0],z:s[1],r:s[2]/2}));
   (L.pads||[]).forEach(p=>fp.push({x:p[0],z:p[1],r:1.7}));
+  if(!L.goalPos) return false; fp.push({x:L.goalPos[0],z:L.goalPos[2],r:2.0});
   for(let i=0;i<fp.length;i++)for(let j=i+1;j<fp.length;j++){ if(Math.hypot(fp[i].x-fp[j].x,fp[i].z-fp[j].z)<fp[i].r+fp[j].r-0.6) return false; }
   for(const st of (L.stars||[])){ if(st[1]<=1.6) continue; let ok=false;
     for(const p of (L.platforms||[])){ if(Math.abs(st[0]-p[0])<p[2]/2+0.6 && Math.abs(st[2]-p[1])<p[3]/2+0.6 && p[4]<=3.0 && st[1]-p[4]>=0.3 && st[1]-p[4]<=1.4){ ok=true; break; } }
@@ -338,13 +351,26 @@ function validateLevel(L){
 }
 const LEVELS=[];
 for(let i=0;i<100;i++){ let L=genLevel(i,0), tr=0; while(!validateLevel(L) && tr<30){ L=genLevel(i, tr+1); tr++; } LEVELS.push(L); }
-let levelIdx = 0;
-function clearLevel(){
+let levelIdx = 0, curGoal=null, goalMesh=null, goalMats=null, goalOpen=false, goalCd=0, curIslandR=30;
+function clearLevel(){ goalMesh=null; goalMats=null;
   for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
     o.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
     levelGroup.remove(o); }
   movers.length=0; spinners.length=0; pads.length=0; stars.length=0; solids.length=baseCount;
 }
+function addGoal(x,z){ const g=new THREE.Group(); g.position.set(x,0,z);
+  const baseMat=new THREE.MeshStandardMaterial({color:0xff7a8a,emissive:0xc23048,emissiveIntensity:0.3,roughness:0.4});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.8,0.4,22), baseMat); base.position.y=0.2; base.receiveShadow=true; g.add(base);
+  const ringMat=new THREE.MeshStandardMaterial({color:0xff8a9a,emissive:0xd63048,emissiveIntensity:0.6,roughness:0.25});
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.3,0.22,12,28), ringMat); ring.rotation.x=Math.PI/2; ring.position.y=1.7; g.add(ring);
+  const beamMat=new THREE.MeshBasicMaterial({color:0xffb3bd,transparent:true,opacity:0.14,side:THREE.DoubleSide,depthWrite:false});
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,9,18,1,true), beamMat); beam.position.y=4.5; g.add(beam);
+  levelGroup.add(g); goalMesh=g; goalMats=[baseMat,ringMat,beamMat]; }
+function openGoal(){ if(goalOpen||!goalMats) return; goalOpen=true;
+  goalMats[0].color.set(0x57e0a0); goalMats[0].emissive.set(0x2ad17a);
+  goalMats[1].color.set(0x6affc0); goalMats[1].emissive.set(0x2ad17a);
+  goalMats[2].color.set(0x9bffd0); goalMats[2].opacity=0.2;
+  A.ding(1); const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='🏁 终点门已开启 → 冲！'; } }
 function buildLevel(idx){
   levelIdx=Math.max(0,Math.min(LEVELS.length-1,idx)); clearLevel(); const L=LEVELS[levelIdx];
   (L.platforms||[]).forEach(p=>addPlatform(p[0],p[1],p[2],p[3],p[4],p[5]));
@@ -352,8 +378,11 @@ function buildLevel(idx){
   (L.spinners||[]).forEach(s=>addSpinner(s[0],s[1],s[2],s[3],s[4]));
   (L.pads||[]).forEach(p=>addPad(p[0],p[1]));
   (L.stars||[]).forEach(s=>addStar(s[0],s[1],s[2]));
+  curGoal=L.goalPos||[20,0,0]; goalOpen=false; goalCd=0; addGoal(curGoal[0],curGoal[2]);
+  const obj=document.getElementById('obj'); if(obj){ obj.classList.remove('warn'); obj.textContent='🏁 收齐全部 ⭐ 再冲终点！'; }
   total=stars.length; STAR_T=L.thresholds||[55,85]; scEl.textContent='0/'+total;
   const gc=GROUND[L.world||0]; island.material.color.set(gc[0]); grass.material.color.set(gc[1]);   // 按世界换地色
+  curIslandR=Math.min(ISLAND_R,(L.arenaR||28)+4); const sc=curIslandR/ISLAND_R; island.scale.set(sc,1,sc); grass.scale.set(sc,sc,1);   // 按关变岛屿大小
 }
 // 逐关进度（最佳时间/星级/解锁/下一关）——世界地图与通关庆祝都会用到
 function levelBest(i){ const b=parseFloat(localStorage.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
@@ -635,7 +664,7 @@ function tick(dt){
   if(keys.Space&&grounded)jump();
   const prevFeet=player.position.y;
   vy-=G*dt; player.position.y+=vy*dt;
-  let support=(Math.hypot(player.position.x,player.position.z)<ISLAND_R)?0:-999, supSolid=null;   // 岛面
+  let support=(Math.hypot(player.position.x,player.position.z)<curIslandR)?0:-999, supSolid=null;   // 岛面（按关变大小）
   for(const s of solids){
     const over = s.box
       ? (player.position.x>=s.minX-PR && player.position.x<=s.maxX+PR && player.position.z>=s.minZ-PR && player.position.z<=s.maxZ+PR)
@@ -647,6 +676,18 @@ function tick(dt){
     player.position.y=support; vy=0; grounded=true; groundSolid=supSolid;
   } else { grounded=false; groundSolid=null; }
   if(player.position.y<-20){ player.position.set(0,2,0); vy=0; }   // 掉出去复位
+  if(goalCd>0) goalCd-=dt;
+  if(goalMesh){ goalMesh.rotation.y += dt*1.4;
+    if(state==='play' && curGoal && Math.hypot(player.position.x-curGoal[0],player.position.z-curGoal[2])<1.9 && player.position.y<2.6){
+      if(score>=total){ if(running) showWin(); }
+      else if(goalCd<=0){ goalCd=1.0;   // 未集齐就到终点 → 惩罚：击退 + 扣时间 + 提示
+        const dx=player.position.x-curGoal[0], dz=player.position.z-curGoal[2], d=Math.hypot(dx,dz)||1;
+        vel.x=dx/d*13; vel.z=dz/d*13; vy=7.5; grounded=false; stun=0.3; timeMs+=2000; A.hit();
+        const o=document.getElementById('obj'); if(o){ o.textContent='❌ 还差 '+(total-score)+' 颗 ⭐！(罚 +2s)'; o.classList.add('warn'); clearTimeout(o._t);
+          o._t=setTimeout(()=>{ o.classList.remove('warn'); o.textContent=goalOpen?'🏁 终点门已开启 → 冲！':('⭐ '+score+'/'+total+' → 收齐后冲终点'); },1500); }
+      }
+    }
+  }
   // 弹簧
   for(const pd of pads){ pd.sq=Math.max(0,pd.sq-dt*5); pd.g.scale.y=1-pd.sq*0.4;
     if(state==='play' && grounded && Math.abs(player.position.x-pd.x)<1.5 && Math.abs(player.position.z-pd.z)<1.5){ vy=20; grounded=false; squashV=8; pd.sq=1; A.bounce(); } }
@@ -700,7 +741,8 @@ function tick(dt){
       if(combo>=2){ const bn=(Math.min(combo,COMBO_MAX)-1)*COMBO_STEP; bonusMs+=bn; popCombo(combo,bn,s.m.position);
         comboEl.textContent='连击 x'+combo; comboEl.classList.remove('on'); void comboEl.offsetWidth; comboEl.classList.add('on'); }
       A.collect(score);
-      if(running && score>=total) showWin();
+      const o2=document.getElementById('obj'); if(o2 && !goalOpen) o2.textContent='⭐ '+score+'/'+total+' → 收齐后冲终点';
+      if(score>=total) openGoal();
     } }
   // 粒子
   for(let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.life-=dt; if(f.life<=0){ scene.remove(f.o); f.o.geometry.dispose(); f.o.material.dispose(); fx.splice(i,1); continue; }
@@ -724,7 +766,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
