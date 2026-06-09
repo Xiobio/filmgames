@@ -32,7 +32,26 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 #win .best{font-size:15px;color:#6b5b7a;margin-bottom:18px;font-weight:700}
 #win button{font-family:inherit;font-weight:800;font-size:20px;color:#fff;background:#ff8fb0;border:none;border-radius:24px;padding:12px 34px;cursor:pointer;box-shadow:0 6px 0 #e26d92,0 10px 18px rgba(0,0,0,.18)}
 #win button:active{transform:translateY(3px);box-shadow:0 3px 0 #e26d92}
-#win .stars{font-size:42px;letter-spacing:5px;color:#ffd34d;text-shadow:0 2px 0 #e0a000;margin:2px 0}
+#win .banner{font-size:30px;font-weight:800;color:#ff6f91;text-shadow:0 3px 0 #fff,0 5px 12px rgba(0,0,0,.14)}
+#win .banner.drop{animation:bannerDrop .42s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes bannerDrop{0%{transform:translateY(-130%) rotate(-6deg);opacity:0}70%{transform:translateY(6%) rotate(2deg)}100%{transform:translateY(0);opacity:1}}
+#win .lvname{font-size:13px;font-weight:700;color:#9aa7b5;letter-spacing:2px;margin:3px 0 8px}
+#win .stars{display:flex;justify-content:center;gap:8px;height:52px;margin:4px 0;font-size:44px;line-height:1}
+#win .stars .star{color:#e3e7eb;display:inline-block;position:relative;transition:color .15s}
+#win .stars .star.lit{color:#ffd34d;text-shadow:0 2px 0 #e0a000,0 0 18px rgba(255,211,77,.9)}
+#win .stars .star.fly{animation:starFlyIn .5s ease-out both,starPunch .26s .42s}
+@keyframes starFlyIn{0%{transform:translate(var(--fx,0),-90px) rotate(-220deg) scale(0);opacity:0}60%{opacity:1}100%{transform:translate(0,0) rotate(0) scale(1);opacity:1}}
+@keyframes starPunch{0%{transform:scale(1)}45%{transform:scale(1.42)}100%{transform:scale(1)}}
+.starburst{position:fixed;width:78px;height:78px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,255,255,0) 65%);transform:translate(-50%,-50%) scale(0);pointer-events:none;z-index:9;animation:starburst .5s ease-out forwards}
+@keyframes starburst{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+#win .time.pop{animation:countPop .15s}
+@keyframes countPop{0%{transform:scale(1)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
+#win .best.rec{color:#e98a00;font-weight:800;animation:shake .1s 3}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+#flash{position:fixed;inset:0;z-index:20;background:#fff;pointer-events:none;opacity:0;mix-blend-mode:screen}
+@keyframes flashWipe{0%{opacity:0}30%{opacity:.5}100%{opacity:0}}
+.confetti{position:fixed;top:-14px;width:9px;height:14px;z-index:18;pointer-events:none;border-radius:2px;animation:confFall linear forwards}
+@keyframes confFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(112vh) rotate(760deg);opacity:.85}}
 #win .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 #mute{position:fixed;left:18px;top:64px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;
   cursor:pointer;font-size:17px;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
@@ -102,7 +121,8 @@ body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{o
 <div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
 <div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
 <div id="load">豆豆乐园 载入中…</div>
-<div id="win"><div class="card"><h1>🎉 通关！</h1><div class="stars" id="ws">★★★</div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="next">下一关 →</button><button id="again" class="ghost">再玩</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
+<div id="win"><div class="card"><div class="banner" id="wbanner">🎉 通关！</div><div class="lvname" id="wlv"></div><div class="stars" id="ws"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="next">下一关 →</button><button id="again" class="ghost">再玩</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
+<div id="flash"></div>
 <div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
 
 <script type="importmap">
@@ -310,7 +330,28 @@ const COMBO_WINDOW=2600, COMBO_STEP=200, COMBO_MAX=6;      // 连击窗口ms / �
 const tmEl=document.getElementById('tm'), winEl=document.getElementById('win'),
       wtEl=document.getElementById('wt'), wbEl=document.getElementById('wb'), wsEl=document.getElementById('ws'),
       wbonusEl=document.getElementById('wbonus'), comboEl=document.getElementById('combo'),
+      wbannerEl=document.getElementById('wbanner'), wlvEl=document.getElementById('wlv'), flashEl=document.getElementById('flash'),
       startEl=document.getElementById('start'), startStatsEl=document.getElementById('startStats');
+function spawnConfetti(n){ const cols=['#ff8fb0','#ffd34d','#9bd0ff','#8ad6c0','#c7a3ff','#ff6f91','#ffb27a'];
+  for(let i=0;i<n;i++){ const d=document.createElement('div'); d.className='confetti'; d.style.left=(Math.random()*100)+'vw';
+    d.style.background=cols[(Math.random()*cols.length)|0]; d.style.animationDuration=(1.8+Math.random()*1.7)+'s'; d.style.animationDelay=(Math.random()*0.35)+'s';
+    if(Math.random()<0.5) d.style.borderRadius='50%'; document.body.appendChild(d); setTimeout(()=>d.remove(),4200); } }
+function celebrate(rating, secs, rec){
+  wlvEl.textContent=(LEVELS[levelIdx]&&LEVELS[levelIdx].name)||'';
+  const ss=document.querySelectorAll('#ws .star'); ss.forEach(s=>{ s.classList.remove('lit','fly'); });
+  wbEl.classList.remove('rec'); wtEl.textContent='0.0';
+  document.getElementById('next').style.display=(levelIdx+1<LEVELS.length)?'':'none';
+  winEl.classList.add('show');
+  flashEl.style.animation='none'; void flashEl.offsetWidth; flashEl.style.animation='flashWipe .22s ease-out';
+  wbannerEl.classList.remove('drop'); void wbannerEl.offsetWidth; wbannerEl.classList.add('drop');
+  let step=0; const N=12, roll=setInterval(()=>{ step++; wtEl.textContent=(secs*step/N).toFixed(1);
+    if(step>=N){ clearInterval(roll); wtEl.textContent=secs.toFixed(1); const tp=wtEl.parentElement; tp.classList.add('pop'); setTimeout(()=>tp.classList.remove('pop'),200); } }, 38);
+  const fx=['-160px','0px','160px'];
+  for(let i=0;i<rating;i++){ setTimeout(()=>{ const st=ss[i]; if(!st)return; st.style.setProperty('--fx',fx[i]); st.classList.add('lit','fly'); A.ding(i);
+    const r=st.getBoundingClientRect(), b=document.createElement('div'); b.className='starburst'; b.style.left=(r.left+r.width/2)+'px'; b.style.top=(r.top+r.height/2)+'px'; document.body.appendChild(b); setTimeout(()=>b.remove(),560);
+  }, 520+i*300); }
+  setTimeout(()=>{ if(rec) wbEl.classList.add('rec'); A.win(); spawnConfetti(rating>=3?72:rating*18+18); }, 520+rating*300+120);
+}
 let STAR_T=[55,85];                                         // ≤55s→3★，≤85s→2★，否则1★（buildLevel 按关覆盖）
 buildLevel(0);                                              // 构建首关，设置 total/STAR_T
 let best = parseFloat(localStorage.getItem('bean_best')) || 0;
@@ -328,7 +369,7 @@ function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats();
 function showWin(){ running=false; state='results';
   const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
   wbonusEl.textContent = bonus>0 ? `原始 ${raw.toFixed(1)}s − 连击奖励 ${bonus.toFixed(1)}s` : `用时 ${raw.toFixed(1)}s`;
-  const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1; wsEl.textContent=starStr(rating);
+  const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1;
   // 逐关进度（与全局最佳/皮肤养成并存）
   try{ const bk='bean_lv'+levelIdx+'_best', sk='bean_lv'+levelIdx+'_stars';
     const pb=parseFloat(localStorage.getItem(bk)); if(isNaN(pb)||secs<pb) localStorage.setItem(bk,String(secs));
@@ -339,8 +380,7 @@ function showWin(){ running=false; state='results';
   const prevTot=+(localStorage.getItem('bean_totalStars')||0), tot=prevTot+total; try{ localStorage.setItem('bean_totalStars',String(tot)); }catch(e){}
   const newSkins=SKINS.filter(s=> s.need>prevTot && s.need<=tot).map(s=>s.name);
   wbEl.innerHTML = (rec?'🏆 新纪录！':'最佳 '+best.toFixed(1)+'s') + (newSkins.length?' · 🎉解锁皮肤「'+newSkins.join('、')+'」':'');
-  document.getElementById('next').style.display = (levelIdx+1<LEVELS.length)?'':'none';
-  winEl.classList.add('show'); A.win(); }
+  celebrate(rating, secs, rec); }
 const restart = startGame;                                  // 兼容旧调试钩子
 document.getElementById('play').addEventListener('click', startGame);
 document.getElementById('again').addEventListener('click', startGame);
@@ -442,6 +482,7 @@ const A = {
   hit(){ this.tone(150,0.18,'sawtooth',0.18,70); this.tone(90,0.22,'square',0.10,60); },
   collect(n){ const f=620*Math.pow(2,(Math.min(n,12)-1)/12); this.tone(f,0.13,'triangle',0.16,f*1.5); },
   win(){ [523,659,784,1047,1319].forEach((n,i)=>setTimeout(()=>this.tone(n,0.2,'triangle',0.18,n*1.01), i*110)); },
+  ding(i){ const f=[660,880,1175][Math.min(i,2)]; this.tone(f,0.2,'triangle',0.2,f*1.4); },
 };
 addEventListener('pointerdown',()=>A.init()); addEventListener('keydown',()=>A.init());
 // 静音开关
