@@ -293,23 +293,33 @@ function genLevel(idx, salt){
   const rng=mulberry32((((idx+1)*2654435761) ^ ((salt||0)*40503))>>>0);
   const world=Math.min(9,Math.floor(idx/10)), t=idx/99, pal=PALETTES[world];
   const col=()=>pal[(rng()*pal.length)|0];
-  const numStars=Math.round(5+t*11), R=13+t*15, maxTop=0.8+t*2.0;
-  const numMovers=world>=1?Math.round(0.4+t*2.6):0, numSpinners=world>=2?Math.round((world-1)*0.35+t*2.4):0, numPads=Math.round(1+t*2);
-  const spinSpd=1.2+t*1.4, movSpd=0.4+t*0.45, movRange=4+t*5;
+  const numStars=Math.round(5+t*11), R=13+t*15, maxTop=0.8+t*1.6;
+  const useSprings=world>=1, useMovers=world>=2, useSpinners=world>=3;   // 按世界引入：W1跑跳→W2弹簧→W3移动→W4旋转
+  const numMovers=useMovers?Math.round(0.6+t*2.2):0, numSpinners=useSpinners?Math.round((world-2)*0.3+t*2.0):0;
+  const spinSpd=1.2+t*1.5, movSpd=0.4+t*0.5, movRange=3.5+t*2.5, barH=world>=6?1.4:1.1;
   const placed=DECOR_FP.map(d=>({x:d[0],z:d[1],r:d[2]}));
   const free=(x,z,r)=>{ if(Math.hypot(x,z)<5) return false; if(Math.hypot(x,z)>R-r-0.5) return false; for(const p of placed){ if(Math.hypot(x-p.x,z-p.z)<r+p.r+1.0) return false; } return true; };
   const spot=(r)=>{ for(let k=0;k<60;k++){ const a=rng()*6.2832, rad=5+rng()*(R-5-r); const x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,r)){ placed.push({x,z,r}); return [x,z]; } } return null; };
   const platforms=[],movers=[],spinners=[],pads=[],stars=[]; let remaining=numStars;
-  const groundN=Math.max(1,Math.round(numStars*(0.5-t*0.32)));
+  // 地面星
+  const groundN=Math.max(1,Math.round(numStars*(0.45-t*0.28)));
   for(let i=0;i<groundN&&remaining>0;i++){ const s=spot(1.1); if(s){ stars.push([s[0],1.2,s[1]]); remaining--; } }
-  for(let i=0;i<numMovers&&remaining>0;i++){ const hw=1.9+rng()*0.5, hd=1.8+rng()*0.5, top=+(0.8+rng()*Math.min(maxTop-0.8,1.5)).toFixed(2), axis=rng()<0.5?'x':'z';
-    const s=spot(Math.max(hw,hd)+movRange); if(s){ movers.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col(),axis,+movRange.toFixed(1),+movSpd.toFixed(2)]); stars.push([s[0],+(top+1.2).toFixed(2),s[1]]); remaining--; } }
+  // 弹簧高空星（W2 起，垂直挑战：只能踩弹簧弹上去够到）
+  if(useSprings){ const padN=Math.max(1,Math.round(numStars*(0.18+t*0.12)));
+    for(let i=0;i<padN&&remaining>0;i++){ const s=spot(1.9); if(s){ pads.push([s[0],s[1]]); stars.push([s[0],+(3.8+rng()*1.8).toFixed(2),s[1]]); remaining--; } } }
+  // 移动平台星（W3 起）
+  if(useMovers){ for(let i=0;i<numMovers&&remaining>0;i++){ const hw=1.9+rng()*0.4, hd=1.8+rng()*0.4, top=+(0.8+rng()*Math.min(maxTop-0.8,1.3)).toFixed(2), axis=rng()<0.5?'x':'z';
+    const s=spot(Math.max(hw,hd)+movRange); if(s){ movers.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col(),axis,+movRange.toFixed(1),+movSpd.toFixed(2)]); stars.push([s[0],+(top+1.2).toFixed(2),s[1]]); remaining--; } } }
+  // 平台星（其余）
   let guard=0;
   while(remaining>0 && guard++<300){ const hw=1.6+rng()*1.0, hd=1.6+rng()*1.0, top=+(0.8+rng()*(maxTop-0.8)).toFixed(2);
     const s=spot(Math.max(hw,hd)); if(s){ platforms.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col()]); stars.push([s[0],+(top+1.0).toFixed(2),s[1]]); remaining--; } }
-  for(let i=0;i<numSpinners;i++){ const len=+(6+rng()*3.5).toFixed(1); const s=spot(len/2+0.4); if(s){ spinners.push([s[0],s[1],len,+(spinSpd*(rng()<0.5?1:-1)).toFixed(2),1.1]); } }
-  for(let i=0;i<numPads;i++){ const s=spot(1.8); if(s){ pads.push([s[0],s[1]]); } }
-  const t3=Math.round(numStars*4.5+R*0.5+numSpinners*3), t2=Math.round(numStars*7.5+R*0.9+numSpinners*5);
+  // 旋转机关（W4 起，W7+ 横杆抬高更险）
+  for(let i=0;i<numSpinners;i++){ const len=+(6+rng()*3.5).toFixed(1); const s=spot(len/2+0.4); if(s){ spinners.push([s[0],s[1],len,+(spinSpd*(rng()<0.5?1:-1)).toFixed(2),barH]); } }
+  // 额外弹簧（趣味/兜底）
+  const padTarget=useSprings?Math.round(1.5+t*1.5):1;
+  for(let i=pads.length;i<padTarget;i++){ const s=spot(1.8); if(s) pads.push([s[0],s[1]]); }
+  const t3=Math.round(numStars*4+R*0.4+numSpinners*2.5), t2=Math.round(numStars*7+R*0.7+numSpinners*4.5);
   return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, thresholds:[t3,t2], platforms, movers, spinners, pads, stars };
 }
 // 自检：无重叠几何（防穿模）+ 每颗星可达
@@ -317,10 +327,12 @@ function validateLevel(L){
   const fp=[]; (L.platforms||[]).forEach(p=>fp.push({x:p[0],z:p[1],r:Math.max(p[2],p[3])/2}));
   (L.movers||[]).forEach(m=>fp.push({x:m[0],z:m[1],r:Math.max(m[2],m[3])/2+m[7]}));
   (L.spinners||[]).forEach(s=>fp.push({x:s[0],z:s[1],r:s[2]/2}));
+  (L.pads||[]).forEach(p=>fp.push({x:p[0],z:p[1],r:1.7}));
   for(let i=0;i<fp.length;i++)for(let j=i+1;j<fp.length;j++){ if(Math.hypot(fp[i].x-fp[j].x,fp[i].z-fp[j].z)<fp[i].r+fp[j].r-0.6) return false; }
   for(const st of (L.stars||[])){ if(st[1]<=1.6) continue; let ok=false;
     for(const p of (L.platforms||[])){ if(Math.abs(st[0]-p[0])<p[2]/2+0.6 && Math.abs(st[2]-p[1])<p[3]/2+0.6 && p[4]<=3.0 && st[1]-p[4]>=0.3 && st[1]-p[4]<=1.4){ ok=true; break; } }
     if(!ok) for(const m of (L.movers||[])){ if(Math.abs(st[0]-m[0])<1.0 && Math.abs(st[2]-m[1])<1.0 && m[4]<=3.0 && st[1]-m[4]<=1.6){ ok=true; break; } }
+    if(!ok) for(const p of (L.pads||[])){ if(Math.abs(st[0]-p[0])<2.0 && Math.abs(st[2]-p[1])<2.0 && st[1]<=7.0){ ok=true; break; } }   // 弹簧可弹到的高空星
     if(!ok) return false; }
   return (L.stars||[]).length>=4;
 }
