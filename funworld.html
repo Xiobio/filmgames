@@ -75,8 +75,9 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 .map-top .prog b{color:#e98a00}
 .world{position:relative;padding:0 0 6px}
 .world-banner{position:sticky;top:54px;z-index:3;text-align:center;padding:9px;font-weight:800;color:#fff;font-size:19px;text-shadow:0 2px 0 rgba(0,0,0,.16),0 3px 8px rgba(0,0,0,.12)}
-.track{position:relative;height:540px;margin:0 auto;max-width:540px}
-.node{position:absolute;width:54px;height:54px;margin:-27px;border-radius:50%;border:4px solid #fff;cursor:pointer;
+.track{position:relative;height:560px;margin:0 auto;width:360px}
+.path{position:absolute;height:7px;background:rgba(255,255,255,.6);border-radius:4px;transform-origin:0 50%;z-index:0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.node{position:absolute;width:54px;height:54px;margin:-27px;border-radius:50%;border:4px solid #fff;cursor:pointer;z-index:1;
   display:grid;place-items:center;font-weight:800;color:#fff;font-size:16px;box-shadow:0 5px 0 rgba(0,0,0,.16),0 8px 14px rgba(0,0,0,.12);transition:transform .12s}
 .node:hover{transform:scale(1.12)}
 .node.lock{background:#bcc8d2;filter:saturate(.4);cursor:default;box-shadow:0 4px 0 #9fb0bd}
@@ -321,7 +322,7 @@ function genLevel(idx, salt){
   const world=Math.min(9,Math.floor(idx/10)), t=idx/99, pal=PALETTES[world];
   const col=()=>pal[(rng()*pal.length)|0];
   const arch=ARCHES[(idx*7+world*3)%ARCHES.length];   // 本关地形布局原型
-  const numStars=Math.round(5+t*11), R=13+t*15, maxTop=0.8+t*1.6;
+  const numStars=Math.round(10+t*10), R=15+t*15, maxTop=0.8+t*1.6;
   const useSprings=world>=1, useMovers=world>=2, useSpinners=world>=3;   // 按世界引入：W1跑跳→W2弹簧→W3移动→W4旋转
   const numMovers=useMovers?Math.round(0.6+t*2.2):0, numSpinners=useSpinners?Math.round((world-2)*0.3+t*2.0):0;
   const spinSpd=1.2+t*1.5, movSpd=0.4+t*0.5, movRange=3.5+t*2.5, barH=world>=6?1.4:1.1;
@@ -507,10 +508,15 @@ function buildMap(){ worldsEl.innerHTML=''; let doneN=0, totS=0; const cur=curLe
     let ws=0; for(let j=0;j<10;j++) ws+=levelStars(w*10+j);
     const ban=document.createElement('div'); ban.className='world-banner'; ban.textContent=(w+1)+' · '+WORLD_NAMES[w]+'  ⭐'+ws+'/30'; sec.appendChild(ban);
     const track=document.createElement('div'); track.className='track';
+    const pos=[]; for(let j=0;j<10;j++) pos.push([180+120*Math.sin(j*0.95), 42+j*52]);
+    for(let j=0;j<9;j++){ const a=pos[j],b=pos[j+1],dx=b[0]-a[0],dy=b[1]-a[1];
+      const line=document.createElement('div'); line.className='path'; line.style.left=a[0]+'px'; line.style.top=a[1]+'px';
+      line.style.width=Math.hypot(dx,dy)+'px'; line.style.transform='rotate('+(Math.atan2(dy,dx)*180/Math.PI)+'deg)';
+      if(!levelUnlocked(w*10+j+1)) line.style.opacity='0.28'; track.appendChild(line); }
     for(let j=0;j<10;j++){ const i=w*10+j, unlocked=levelUnlocked(i), done=levelBest(i)!==null;
       if(done) doneN++; totS+=levelStars(i);
       const node=document.createElement('a'); node.className='node '+(done?'done':(unlocked?'open':'lock'))+(i===cur?' current':'');
-      node.style.left=(50+30*Math.sin(j*0.85))+'%'; node.style.top=(28+j*52)+'px';
+      node.style.left=pos[j][0]+'px'; node.style.top=pos[j][1]+'px';
       if(!unlocked) node.innerHTML='<span class="lk">🔒</span>';
       else if(done){ const st=levelStars(i); node.innerHTML=(i+1)+'<span class="ms">'+('★'.repeat(st)+'☆'.repeat(3-st))+'</span>'; }
       else node.textContent=(i+1);
@@ -780,7 +786,7 @@ function tick(dt){
     else { const ty=s.base+Math.sin(s.spin*1.5)*0.18, k=Math.min(1,8*dt);
       s.m.position.x+=(s.bx-s.m.position.x)*k; s.m.position.z+=(s.bz-s.m.position.z)*k; s.m.position.y+=(ty-s.m.position.y)*k; }
     if(state==='play' && s.m.position.distanceTo(_mp)<1.0){
-      s.alive=false; scene.remove(s.m); popStar(s.m.position.x,s.m.position.y,s.m.position.z); score++; scEl.textContent=score+'/'+total;
+      s.alive=false; levelGroup.remove(s.m); popStar(s.m.position.x,s.m.position.y,s.m.position.z); score++; scEl.textContent=score+'/'+total;
       combo = (timeMs-lastCollectMs<=COMBO_WINDOW) ? combo+1 : 1; lastCollectMs=timeMs;
       if(combo>=2){ const bn=(Math.min(combo,COMBO_MAX)-1)*COMBO_STEP; bonusMs+=bn; popCombo(combo,bn,s.m.position);
         comboEl.textContent='连击 x'+combo; comboEl.classList.remove('on'); void comboEl.offsetWidth; comboEl.classList.add('on'); }
