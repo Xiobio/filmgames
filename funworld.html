@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>豆豆冲冲冲 · Bean Dash · 卡通 3D 闯关跑酷</title>
 <meta name="description" content="《豆豆冲冲冲 Bean Dash》——糖豆人风可爱卡通 3D 闯关跑酷：100 关程序化关卡、每日挑战、收齐星星冲最快时间。纯网页即点即玩，桌面手机通吃。">
 <meta name="keywords" content="网页游戏,3D游戏,闯关,跑酷,糖豆人,Fall Guys,休闲游戏,Bean Dash,豆豆冲冲冲,每日挑战">
@@ -146,10 +146,10 @@ body.playing #obj{opacity:1}
 /* 移动端摇杆/按钮 */
 #mob{position:fixed;inset:0;z-index:4;pointer-events:none;display:none}
 #mob.on{display:block}
-#joy{position:absolute;left:24px;bottom:26px;width:130px;height:130px;border-radius:50%;pointer-events:auto;touch-action:none;
+#joy{position:absolute;left:calc(24px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;pointer-events:auto;touch-action:none;
   background:radial-gradient(circle,rgba(255,255,255,.5),rgba(255,255,255,.25));border:3px solid rgba(255,255,255,.7);box-shadow:0 6px 16px rgba(0,0,0,.15)}
 #jt{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.2)}
-#jbtn{position:absolute;right:30px;bottom:42px;width:84px;height:84px;border-radius:50%;pointer-events:auto;touch-action:none;
+#jbtn{position:absolute;right:calc(30px + env(safe-area-inset-right));bottom:calc(42px + env(safe-area-inset-bottom));width:84px;height:84px;border-radius:50%;pointer-events:auto;touch-action:none;
   background:#ff8fb0;border:4px solid #fff;box-shadow:0 6px 0 #e26d92,0 10px 18px rgba(0,0,0,.18);display:grid;place-items:center;
   font-weight:800;font-size:18px;color:#fff;user-select:none}
 #jbtn:active{transform:translateY(3px);box-shadow:0 3px 0 #e26d92}
@@ -710,7 +710,11 @@ function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.a
 function startGame(){ A.init(); resetRun();
   if(ghostMesh){ scene.remove(ghostMesh); ghostMesh=null; } ghostPlay=null;
   if(!dailyMode){ try{ const g=LS.getItem('bean_ghost_'+levelIdx); if(g){ ghostPlay=JSON.parse(g); ghostMesh=makeGhost(); } }catch(e){} }
-  state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
+  state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing');
+  if(!LS.getItem('bean_onboarded')){ try{ LS.setItem('bean_onboarded','1'); }catch(e){}   // 首玩一次性引导
+    const coach=document.createElement('div'); coach.innerHTML='🕹️ <b>WASD / 摇杆</b> 跑动 · <b>空格 / 跳钮</b> 跳<br>收齐所有 ⭐ → 再冲<b>终点门</b>！';
+    coach.style.cssText='position:fixed;top:33%;left:50%;transform:translate(-50%,-50%);z-index:6;text-align:center;background:rgba(42,30,55,.84);color:#fff;font-weight:800;font-size:16px;line-height:1.8;padding:15px 24px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .6s';
+    document.body.appendChild(coach); setTimeout(()=>{ coach.style.opacity='0'; setTimeout(()=>coach.remove(),700); }, 4500); } }
 function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
 // ---- 每日挑战（按日期种子，全员同图 + 连续天数 streak）----
 function todayNum(){ const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
