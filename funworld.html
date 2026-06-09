@@ -912,7 +912,9 @@ const touch={x:0,y:0};
   joy.addEventListener('pointerdown',e=>{pid=e.pointerId;joy.setPointerCapture(e.pointerId);at(e);e.preventDefault();});
   joy.addEventListener('pointermove',e=>{if(e.pointerId===pid)at(e);});
   const up=e=>{if(e.pointerId===pid){pid=null;touch.x=touch.y=0;jt.style.transform='translate(0,0)';}}; joy.addEventListener('pointerup',up); joy.addEventListener('pointercancel',up);
-  document.getElementById('jbtn').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+  const jb=document.getElementById('jbtn');
+  jb.addEventListener('pointerdown',e=>{e.preventDefault(); jumpBufMs=timeMs; jumpHeld=true; jump();});
+  const jbUp=e=>{ jumpHeld=false; if(vy>4&&!grounded) vy*=0.45; }; jb.addEventListener('pointerup',jbUp); jb.addEventListener('pointercancel',jbUp);
   if(matchMedia('(pointer:coarse)').matches||'ontouchstart'in window) document.getElementById('mob').classList.add('on');
 }
 
@@ -921,8 +923,11 @@ const vel=new THREE.Vector3(); let vy=0, grounded=true, facing=0, squash=0, squa
 let clock=0, groundSolid=null, stun=0, dustClock=0;   // groundSolid=脚下踩着的实体（乘坐移动平台）；stun=被机关击飞硬直
 const RUN=7, SPRINT=11, ACC=14, G=26, JUMP=13, MAGNET_R=1.8;
 const _f=new THREE.Vector3(),_r=new THREE.Vector3(),_w=new THREE.Vector3(),_tgt=new THREE.Vector3(),_off=new THREE.Vector3(),_goal=new THREE.Vector3(),_mp=new THREE.Vector3();
-function jump(){ if(state==='play' && grounded){ vy=JUMP; grounded=false; squashV=6; A.jump(); } }
-addEventListener('keydown',e=>{ if(e.code==='Space')jump(); });
+let lastGroundedMs=-9999, jumpBufMs=-9999, jumpHeld=false;   // coyote-time + 跳跃缓冲：手感更"跟手"，不吃输入
+function canJump(){ return state==='play' && (grounded || (timeMs-lastGroundedMs)<110); }   // 离地后 ~6 帧内仍可起跳
+function jump(){ if(canJump()){ vy=JUMP; grounded=false; lastGroundedMs=-9999; jumpBufMs=-9999; squashV=6; A.jump(); } }
+addEventListener('keydown',e=>{ if(e.code==='Space'){ jumpBufMs=timeMs; jump(); } });          // 起跳预输入进缓冲
+addEventListener('keyup',e=>{ if(e.code==='Space' && vy>4 && !grounded) vy*=0.45; });           // 松键短跳：轻点小跳、长按大跳
 
 function tick(dt){
   if(running){ timeMs+=dt*1000; tmEl.textContent=(timeMs/1000).toFixed(1); }
@@ -983,7 +988,7 @@ function tick(dt){
     }
   }
   // —— 重力 + 竖直碰撞：只在「之前就在顶面之上」时落到顶面，高度才真正生效 ——
-  if(keys.Space&&grounded)jump();
+  if((timeMs-jumpBufMs)<130 || ((keys.Space||jumpHeld)&&grounded)) jump();   // 消化缓冲(着陆瞬间补跳) + 长按连跳
   const prevFeet=player.position.y;
   vy-=G*dt; player.position.y+=vy*dt;
   let support=(Math.hypot(player.position.x,player.position.z)<curIslandR)?0:-999, supSolid=null;   // 岛面（按关变大小）
@@ -1001,7 +1006,7 @@ function tick(dt){
   }
   if(player.position.y<=support+0.001 && vy<=0){
     if(!grounded){ squashV=-Math.min(9,Math.abs(vy)*0.9); landPuff(); if(Math.abs(vy)>2) A.land(); }
-    player.position.y=support; vy=0; grounded=true; groundSolid=supSolid;
+    player.position.y=support; vy=0; grounded=true; groundSolid=supSolid; lastGroundedMs=timeMs;   // 记录着地时刻（coyote用）
     if(state==='play' && supSolid && supSolid.conv){ player.position.x+=supSolid.cvx*dt; player.position.z+=supSolid.cvz*dt; }   // 传送带：站上去被推着走
     if(state==='play' && supSolid && supSolid.box && !supSolid.dyn && supSolid.top>0.6)   // 站上静态高台=记录检查点
       curCheckpoint=[(supSolid.minX+supSolid.maxX)/2, supSolid.top+0.3, (supSolid.minZ+supSolid.maxZ)/2];
@@ -1124,7 +1129,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
