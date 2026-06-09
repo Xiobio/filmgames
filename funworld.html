@@ -162,37 +162,32 @@ grass.rotation.x = -Math.PI/2; grass.position.y = 0.001; grass.receiveShadow = t
 
 // ---- 碰撞体：solids（box=平台 / cyl=圆形障碍）。墙体挡水平、顶面可站立 ----
 const solids = []; const PR = 0.42, STEP = 0.35;   // 角色半径 + 可忽略的小台阶
+const levelGroup = new THREE.Group(); scene.add(levelGroup);   // 关卡专属物体（切关整组清空+dispose 防泄漏）
+let baseCount = 0;                                             // solids 中永久装饰的数量（关卡 solids 追加其后）
 function addPlatform(x,z,w,d,h,color){
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
     new THREE.MeshStandardMaterial({ color, roughness:0.7 }));
-  m.position.set(x, h/2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+  m.position.set(x, h/2, z); m.castShadow = m.receiveShadow = true; levelGroup.add(m);
   solids.push({ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h });
   return m;
 }
-addPlatform(-8, -6, 5,5,1.4, 0xffd36e);
-addPlatform( 9, -3, 6,4,2.4, 0xff9bb3);
-addPlatform( 4, 9, 4,4,2.8, 0x9bd0ff);
-addPlatform(-10, 8, 5,5,1.8, 0xc7a3ff);
-addPlatform( 0, 0, 3.4,3.4,0.8, 0xffe08a);
 
 // ---- 移动平台（会左右滑动，可站上去乘坐）----
 const movers = [];
 function addMover(x,z,w,d,h,color,axis,range,spd){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
     new THREE.MeshStandardMaterial({ color, roughness:0.55, emissive:color, emissiveIntensity:0.06 }));
-  m.position.set(x,h/2,z); m.castShadow=m.receiveShadow=true; scene.add(m);
+  m.position.set(x,h/2,z); m.castShadow=m.receiveShadow=true; levelGroup.add(m);
   const s={ box:true, minX:x-w/2, maxX:x+w/2, minZ:z-d/2, maxZ:z+d/2, top:h };
   solids.push(s);
   movers.push({ mesh:m, s, bx:x, bz:z, hw:w/2, hd:d/2, axis, range, spd, ph:movers.length*1.7 });
   return m;
 }
-addMover( 0,-16, 4.6,4.0, 2.0, 0x8ad6c0, 'x', 7, 0.5);
-addMover(17,  2, 4.0,4.4, 2.6, 0xffb3d1, 'z', 5, 0.5);
 
 // ---- 旋转横扫机关（撞到会被弹飞，需跳过 / 绕开 / 卡时机穿过）----
 const spinners = [];
 function addSpinner(x,z,len,spd,barH){
-  const grp=new THREE.Group(); grp.position.set(x,0,z); scene.add(grp);
+  const grp=new THREE.Group(); grp.position.set(x,0,z); levelGroup.add(grp);
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.42,barH+0.2,16), new THREE.MeshStandardMaterial({color:0xfff1d6,roughness:0.85}));
   pole.position.y=(barH+0.2)/2; pole.castShadow=true; grp.add(pole);
   const arm=new THREE.Group(); arm.position.y=barH; grp.add(arm);
@@ -200,7 +195,6 @@ function addSpinner(x,z,len,spd,barH){
   for(const e of [-1,1]){ const ball=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,12), new THREE.MeshStandardMaterial({color:0xffd34d,roughness:0.4,emissive:0xffb000,emissiveIntensity:0.22})); ball.position.x=e*len/2; ball.castShadow=true; arm.add(ball); }
   spinners.push({ x, z, len, spd, barH, ang:0, cd:0, arm });
 }
-addSpinner(0,-9, 8.5, 1.4, 1.1);
 
 // ---- 装饰：糖果色障碍 + 云 ----
 function blob(x,y,z,r,color,rough){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,2),
@@ -216,6 +210,7 @@ for(const [x,z,c] of [[-20,-10,0xff9bb3],[20,4,0xffd36e],[6,-18,0x9bd0ff]]){
   cap.position.set(x,3.0,z); cap.scale.y=0.8; cap.castShadow=true; scene.add(cap);
   solids.push({ box:false, x, z, r:1.5, top:3.7 });
 }
+baseCount = solids.length;   // 此后追加的都是关卡专属 solids，切关时截断回此长度
 // 软云
 function cloud(x,y,z,s){ const g=new THREE.Group(); const mat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,emissive:0xffffff,emissiveIntensity:0.05});
   for(const o of [[0,0,0,1],[1,-.1,.2,.75],[-1,-.1,-.2,.7],[.4,.35,0,.6]]){ const b=new THREE.Mesh(new THREE.SphereGeometry(o[3]*s,16,12),mat); b.position.set(o[0]*s,o[1]*s,o[2]*s); g.add(b);}
@@ -227,18 +222,41 @@ const pads = [];
 function addPad(x,z){ const g=new THREE.Group();
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.7,0.5,24), new THREE.MeshStandardMaterial({color:0xff5a8a,roughness:0.5})); base.position.y=0.25; base.castShadow=base.receiveShadow=true; g.add(base);
   const top=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,0.35,24), new THREE.MeshStandardMaterial({color:0xffd34d,emissive:0xffb000,emissiveIntensity:0.35,roughness:0.4})); top.position.y=0.65; top.castShadow=true; g.add(top);
-  g.position.set(x,0,z); scene.add(g); pads.push({x,z,g,sq:0}); }
-addPad(-3,12); addPad(13,-9); addPad(-14,0);
+  g.position.set(x,0,z); levelGroup.add(g); pads.push({x,z,g,sq:0}); }
 
 // ---- 星星收集 ----
 const stars = []; let score=0; const scEl=document.getElementById('sc');
-const starGeo = new THREE.IcosahedronGeometry(0.5,0);
-function addStar(x,y,z){ const m=new THREE.Mesh(starGeo, new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:0.6,roughness:0.3,metalness:0.2}));
-  m.position.set(x,y,z); m.castShadow=true; scene.add(m); stars.push({m,base:y,bx:x,bz:z,spin:Math.random()*6,alive:true}); }
-for(const [x,y,z] of [[-8,2.4,-6],[9,3.4,-3],[4,3.7,9],[-10,3.0,8],[0,1.6,0],[-3,2.6,12],[13,1.8,-9],[-14,2.2,0],[18,1.0,16],[-18,1.0,-14],[0,3.3,-16],[17,3.9,2]]) addStar(x,y,z);
+function addStar(x,y,z){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,0), new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:0.6,roughness:0.3,metalness:0.2}));
+  m.position.set(x,y,z); m.castShadow=true; levelGroup.add(m); stars.push({m,base:y,bx:x,bz:z,spin:Math.random()*6,alive:true}); }
+
+// ============ 多关卡：数据驱动（buildLevel 读数据建关，clearLevel 整组清空+dispose）============
+const LEVELS = [
+  { name:'糖果草原', thresholds:[55,85],
+    platforms:[[-8,-6,5,5,1.4,0xffd36e],[9,-3,6,4,2.4,0xff9bb3],[4,9,4,4,2.8,0x9bd0ff],[-10,8,5,5,1.8,0xc7a3ff],[0,0,3.4,3.4,0.8,0xffe08a]],
+    movers:[[0,-16,4.6,4.0,2.0,0x8ad6c0,'x',7,0.5],[17,2,4.0,4.4,2.6,0xffb3d1,'z',5,0.5]],
+    spinners:[[0,-9,8.5,1.4,1.1]],
+    pads:[[-3,12],[13,-9],[-14,0]],
+    stars:[[-8,2.4,-6],[9,3.4,-3],[4,3.7,9],[-10,3.0,8],[0,1.6,0],[-3,2.6,12],[13,1.8,-9],[-14,2.2,0],[18,1.0,16],[-18,1.0,-14],[0,3.3,-16],[17,3.9,2]] },
+];
+let levelIdx = 0;
+function clearLevel(){
+  for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
+    o.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
+    levelGroup.remove(o); }
+  movers.length=0; spinners.length=0; pads.length=0; stars.length=0; solids.length=baseCount;
+}
+function buildLevel(idx){
+  levelIdx=Math.max(0,Math.min(LEVELS.length-1,idx)); clearLevel(); const L=LEVELS[levelIdx];
+  (L.platforms||[]).forEach(p=>addPlatform(p[0],p[1],p[2],p[3],p[4],p[5]));
+  (L.movers||[]).forEach(m=>addMover(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8]));
+  (L.spinners||[]).forEach(s=>addSpinner(s[0],s[1],s[2],s[3],s[4]));
+  (L.pads||[]).forEach(p=>addPad(p[0],p[1]));
+  (L.stars||[]).forEach(s=>addStar(s[0],s[1],s[2]));
+  total=stars.length; STAR_T=L.thresholds||[55,85]; scEl.textContent='0/'+total;
+}
 
 // ---- 完整游戏流程：标题 → 游戏 → 三星结算 → 再玩 / 返回 ----
-const total = stars.length; scEl.textContent = '0/'+total;
+let total = 0;                                              // 当前关星星总数（buildLevel 设置）
 let timeMs=0, running=false, state='menu';                 // state: menu | play | results
 let combo=0, lastCollectMs=-9999, bonusMs=0;               // 连击 → 抵扣时间奖励
 const COMBO_WINDOW=2600, COMBO_STEP=200, COMBO_MAX=6;      // 连击窗口ms / 每级奖励ms / 倍率封顶
@@ -246,7 +264,8 @@ const tmEl=document.getElementById('tm'), winEl=document.getElementById('win'),
       wtEl=document.getElementById('wt'), wbEl=document.getElementById('wb'), wsEl=document.getElementById('ws'),
       wbonusEl=document.getElementById('wbonus'), comboEl=document.getElementById('combo'),
       startEl=document.getElementById('start'), startStatsEl=document.getElementById('startStats');
-const STAR_T=[55,85];                                       // ≤55s→3★，≤85s→2★，否则1★
+let STAR_T=[55,85];                                         // ≤55s→3★，≤85s→2★，否则1★（buildLevel 按关覆盖）
+buildLevel(0);                                              // 构建首关，设置 total/STAR_T
 let best = parseFloat(localStorage.getItem('bean_best')) || 0;
 const starStr = n => '★'.repeat(n)+'☆'.repeat(3-n);
 function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best'))||0, st=+(localStorage.getItem('bean_stars')||0), pl=+(localStorage.getItem('bean_plays')||0), tot=+(localStorage.getItem('bean_totalStars')||0);
@@ -254,7 +273,7 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   const l1 = b ? `最佳 <b>${b.toFixed(1)}s</b> · ${starStr(st)} · 已玩 ${pl} 局` : '首次游玩 · 收齐 '+total+' ⭐ 冲最快时间！';
   const l2 = `累计 ⭐${tot}` + (next ? ` · 距「${next.name}」还需 <b>${next.need-tot}</b>⭐` : ' · 皮肤已集齐 🎉');
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
-function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; scene.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
+function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
   player.position.set(0,3,6); vel.set(0,0,0); vy=0; }
 function startGame(){ A.init(); resetRun(); state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
@@ -545,7 +564,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>

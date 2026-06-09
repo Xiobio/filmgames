@@ -9,6 +9,9 @@ guizhou/assets/splats/
 .claude/
 .superpowers/
 
+# 开发期截图（Playwright 验证产物，非项目内容）
+funworld-*.png
+
 # 系统 / 编辑器 / 依赖
 .DS_Store
 Thumbs.db
