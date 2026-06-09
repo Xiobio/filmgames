@@ -728,10 +728,11 @@ function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
 function startDaily(){ A.init(); dailyMode=true; buildLevelData(genDaily()); resetRun(); state='play'; running=true;
   startEl.classList.remove('show'); winEl.classList.remove('show'); const m=document.getElementById('map'); if(m)m.classList.remove('show'); document.body.classList.add('playing');
   const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent='📅 今日挑战 · 收齐 ⭐ 冲终点！'; } }
+let lastRating=3;   // 最近一次通关星级（用于分享文案）
 function showWin(){ running=false; state='results'; shake=0.6;
   const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
   wbonusEl.textContent = bonus>0 ? `原始 ${raw.toFixed(1)}s − 连击奖励 ${bonus.toFixed(1)}s` : `用时 ${raw.toFixed(1)}s`;
-  const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1;
+  const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1; lastRating=rating;
   if(dailyMode){ const r=recordDaily(secs); wbEl.innerHTML=(r.rec?'🏆 今日新纪录！':'今日最佳 '+r.best.toFixed(1)+'s')+' · 🔥连续 '+r.streak+' 天'; document.getElementById('next').style.display='none'; celebrate(rating,secs,r.rec); return; }
   // 逐关进度（与全局最佳/皮肤养成并存）
   const prevLvStars=+(LS.getItem('bean_lv'+levelIdx+'_stars')||0);
@@ -752,7 +753,10 @@ document.getElementById('tomenu').addEventListener('click', toMenu);
 document.getElementById('next').addEventListener('click', nextLevel);
 // 分享成绩（虚拟传播：navigator.share / 复制到剪贴板）
 const shareBtn=document.getElementById('share');
-function shareText(){ return `我在《豆豆冲冲冲》用 ${wtEl.textContent}s ${wsEl.textContent} 通关！⚡ 来挑战你的最快时间 → ${location.href.split('#')[0]}`; }
+function shareText(){ const base=location.href.split('#')[0], t=wtEl.textContent, stars='★'.repeat(lastRating)+'☆'.repeat(3-lastRating);
+  if(dailyMode) return `豆豆冲冲冲 · 每日挑战\n${stars}  ${t}s\n点开抢今天最快 👉 ${base}#daily`;
+  const lv=LEVELS[levelIdx]?LEVELS[levelIdx].name:('第'+(levelIdx+1)+'关');
+  return `豆豆冲冲冲 · ${lv}\n${stars}  ${t}s\n点开直接挑战、打败我 👉 ${base}#lv=${levelIdx}&t=${t}`; }
 function shareResult(){ A.init(); const text=shareText(), url=location.href.split('#')[0];
   if(navigator.share){ navigator.share({title:'豆豆冲冲冲 · Bean Dash', text, url}).catch(()=>{}); return; }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>{ shareBtn.textContent='已复制 ✓'; setTimeout(()=>{shareBtn.textContent='分享 📤';},1600); }).catch(()=>{ shareBtn.textContent='手动复制'; }); }
@@ -1165,6 +1169,18 @@ function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(d
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
 window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;} };
+// 深链分享：好友点开 #lv=N&t=TIME 直接进入该关、把对方成绩当目标（闭合"分享→玩→再分享"病毒环）
+function applyDeepLink(){ try{ const h=location.hash||'';
+  if(/daily/i.test(h)){ startDaily(); return true; }
+  const lm=h.match(/lv=(\d+)/); if(lm){ const li=Math.max(0,Math.min(LEVELS.length-1,+lm[1]||0));
+    buildLevel(li); startGame();
+    const tm=h.match(/t=([\d.]+)/), ft=tm?parseFloat(tm[1]):0;
+    if(ft>0){ const toast=document.createElement('div'); toast.textContent='🎯 好友成绩 '+ft.toFixed(1)+'s · 打败他！';
+      toast.style.cssText='position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:6;background:rgba(255,110,145,.94);color:#fff;font-weight:800;font-size:15px;padding:9px 20px;border-radius:22px;box-shadow:0 6px 16px rgba(0,0,0,.2);transition:opacity .6s';
+      document.body.appendChild(toast); setTimeout(()=>{ toast.style.opacity='0'; setTimeout(()=>toast.remove(),700); },4200); }
+    return true; }
+  return false; }catch(e){ return false; } }
+applyDeepLink();
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
