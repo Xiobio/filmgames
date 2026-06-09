@@ -189,8 +189,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const lowEnd = matchMedia('(pointer:coarse)').matches || (navigator.hardwareConcurrency||8)<=4;   // 手机/低端：降画质保 60fps
+renderer.setPixelRatio(Math.min(devicePixelRatio, lowEnd?1.5:2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = lowEnd?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 
@@ -214,7 +215,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xc8e6d0, 0.95));
 scene.add(new THREE.AmbientLight(0xffffff, 0.25));
 const sun = new THREE.DirectionalLight(0xfff4e0, 1.55);
 sun.position.set(24,40,18); sun.castShadow = true;
-sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0004;
+sun.shadow.mapSize.set(lowEnd?1024:2048, lowEnd?1024:2048); sun.shadow.bias=-0.0004;
 const sc=sun.shadow.camera; sc.near=1; sc.far=160; sc.left=-60; sc.right=60; sc.top=60; sc.bottom=-60;
 scene.add(sun);
 const fill = new THREE.DirectionalLight(0xbfe0ff, 0.4); fill.position.set(-20,16,-22); scene.add(fill);
@@ -823,10 +824,10 @@ player.position.set(0,3,0);
 camera.position.set(0,6,14); camera.lookAt(0,1,0);
 
 // ---- 后处理（MSAA 渲染目标保清晰 + 轻辉光）----
-const rt = new THREE.WebGLRenderTarget(innerWidth,innerHeight,{samples:4});
+const rt = new THREE.WebGLRenderTarget(innerWidth,innerHeight,{samples:lowEnd?2:4});
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene,camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.32, 0.6, 0.82));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), lowEnd?0.22:0.32, 0.6, 0.82));
 composer.addPass(new OutputPass());
 function resize(){ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();
@@ -835,7 +836,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
