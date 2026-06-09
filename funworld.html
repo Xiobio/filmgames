@@ -102,7 +102,7 @@ body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{o
 <div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
 <div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
 <div id="load">豆豆乐园 载入中…</div>
-<div id="win"><div class="card"><h1>🎉 通关！</h1><div class="stars" id="ws">★★★</div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="again">再玩一次 ↻</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
+<div id="win"><div class="card"><h1>🎉 通关！</h1><div class="stars" id="ws">★★★</div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="next">下一关 →</button><button id="again" class="ghost">再玩</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
 <div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
 
 <script type="importmap">
@@ -229,15 +229,56 @@ const stars = []; let score=0; const scEl=document.getElementById('sc');
 function addStar(x,y,z){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,0), new THREE.MeshStandardMaterial({color:0xffe14d,emissive:0xffc400,emissiveIntensity:0.6,roughness:0.3,metalness:0.2}));
   m.position.set(x,y,z); m.castShadow=true; levelGroup.add(m); stars.push({m,base:y,bx:x,bz:z,spin:Math.random()*6,alive:true}); }
 
-// ============ 多关卡：数据驱动（buildLevel 读数据建关，clearLevel 整组清空+dispose）============
-const LEVELS = [
-  { name:'糖果草原', thresholds:[55,85],
-    platforms:[[-8,-6,5,5,1.4,0xffd36e],[9,-3,6,4,2.4,0xff9bb3],[4,9,4,4,2.8,0x9bd0ff],[-10,8,5,5,1.8,0xc7a3ff],[0,0,3.4,3.4,0.8,0xffe08a]],
-    movers:[[0,-16,4.6,4.0,2.0,0x8ad6c0,'x',7,0.5],[17,2,4.0,4.4,2.6,0xffb3d1,'z',5,0.5]],
-    spinners:[[0,-9,8.5,1.4,1.1]],
-    pads:[[-3,12],[13,-9],[-14,0]],
-    stars:[[-8,2.4,-6],[9,3.4,-3],[4,3.7,9],[-10,3.0,8],[0,1.6,0],[-3,2.6,12],[13,1.8,-9],[-14,2.2,0],[18,1.0,16],[-18,1.0,-14],[0,3.3,-16],[17,3.9,2]] },
+// ============ 多关卡：程序化生成（按关号播种、保证可达 + 无重叠，防穿模）============
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t^=t+Math.imul(t^t>>>7,61|t); return ((t^t>>>14)>>>0)/4294967296; }; }
+const PALETTES=[
+  [0xffd36e,0xff9bb3,0x9bd0ff,0xc7a3ff,0xffe08a],[0xff8fb0,0xffb3d1,0xff6f91,0xffd0dd,0xffa6c9],
+  [0x9be7ff,0xc9f0ff,0x7cc7ff,0xbfe0ff,0xa6e3ff],[0xffb27a,0xff8a5c,0xff6f3c,0xffc14d,0xffa050],
+  [0xb39bff,0x9b7aee,0xc7a3ff,0xd0b3ff,0xa68aff],[0x8ad6c0,0x6fd1ad,0xa6e6d4,0x57c79c,0x9be7d0],
+  [0xffd34d,0xffe066,0xf0c84d,0xfff1a6,0xffe08a],[0xff6f91,0xff9bb3,0xc7a3ff,0x9bd0ff,0x8ad6c0],
+  [0x7cc7ff,0xb39bff,0xff8fb0,0xffd36e,0x8ad6c0],[0xffd34d,0xff6f91,0xb39bff,0x7cc7ff,0x8ad6c0],
 ];
+const GROUND=[[0x9fe6b4,0xb6efbf],[0xffc8de,0xffd9e8],[0xcdeeff,0xe0f4ff],[0xffd0a8,0xffe0c0],[0xd9c8ff,0xe8dcff],
+  [0xb8ecd8,0xcdf3e6],[0xffe6a8,0xfff0c8],[0xffd9e0,0xffe8ee],[0xd0e4ff,0xe0eeff],[0xffe0b0,0xffeccc]];
+const WORLD_NAMES=['糖果草原','棉花糖山','薄荷冰原','蜜糖落日','霓虹梦境','翡翠森林','黄金沙丘','彩虹工厂','云端天阶','庆典终焉'];
+const DECOR_FP=[[-16,-2,1.5],[14,10,1.35],[-3,-15,1.25],[17,-12,1.75],[-18,12,1.3],[-20,-10,1.6],[20,4,1.6],[6,-18,1.6]]; // 永久装饰占位，生成器避开
+function genLevel(idx, salt){
+  const rng=mulberry32((((idx+1)*2654435761) ^ ((salt||0)*40503))>>>0);
+  const world=Math.min(9,Math.floor(idx/10)), t=idx/99, pal=PALETTES[world];
+  const col=()=>pal[(rng()*pal.length)|0];
+  const numStars=Math.round(5+t*11), R=13+t*15, maxTop=0.8+t*2.0;
+  const numMovers=world>=1?Math.round(0.4+t*2.6):0, numSpinners=world>=2?Math.round((world-1)*0.35+t*2.4):0, numPads=Math.round(1+t*2);
+  const spinSpd=1.2+t*1.4, movSpd=0.4+t*0.45, movRange=4+t*5;
+  const placed=DECOR_FP.map(d=>({x:d[0],z:d[1],r:d[2]}));
+  const free=(x,z,r)=>{ if(Math.hypot(x,z)<5) return false; if(Math.hypot(x,z)>R-r-0.5) return false; for(const p of placed){ if(Math.hypot(x-p.x,z-p.z)<r+p.r+1.0) return false; } return true; };
+  const spot=(r)=>{ for(let k=0;k<60;k++){ const a=rng()*6.2832, rad=5+rng()*(R-5-r); const x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,r)){ placed.push({x,z,r}); return [x,z]; } } return null; };
+  const platforms=[],movers=[],spinners=[],pads=[],stars=[]; let remaining=numStars;
+  const groundN=Math.max(1,Math.round(numStars*(0.5-t*0.32)));
+  for(let i=0;i<groundN&&remaining>0;i++){ const s=spot(1.1); if(s){ stars.push([s[0],1.2,s[1]]); remaining--; } }
+  for(let i=0;i<numMovers&&remaining>0;i++){ const hw=1.9+rng()*0.5, hd=1.8+rng()*0.5, top=+(0.8+rng()*Math.min(maxTop-0.8,1.5)).toFixed(2), axis=rng()<0.5?'x':'z';
+    const s=spot(Math.max(hw,hd)+movRange); if(s){ movers.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col(),axis,+movRange.toFixed(1),+movSpd.toFixed(2)]); stars.push([s[0],+(top+1.2).toFixed(2),s[1]]); remaining--; } }
+  let guard=0;
+  while(remaining>0 && guard++<300){ const hw=1.6+rng()*1.0, hd=1.6+rng()*1.0, top=+(0.8+rng()*(maxTop-0.8)).toFixed(2);
+    const s=spot(Math.max(hw,hd)); if(s){ platforms.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col()]); stars.push([s[0],+(top+1.0).toFixed(2),s[1]]); remaining--; } }
+  for(let i=0;i<numSpinners;i++){ const len=+(6+rng()*3.5).toFixed(1); const s=spot(len/2+0.4); if(s){ spinners.push([s[0],s[1],len,+(spinSpd*(rng()<0.5?1:-1)).toFixed(2),1.1]); } }
+  for(let i=0;i<numPads;i++){ const s=spot(1.8); if(s){ pads.push([s[0],s[1]]); } }
+  const t3=Math.round(numStars*4.5+R*0.5+numSpinners*3), t2=Math.round(numStars*7.5+R*0.9+numSpinners*5);
+  return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, thresholds:[t3,t2], platforms, movers, spinners, pads, stars };
+}
+// 自检：无重叠几何（防穿模）+ 每颗星可达
+function validateLevel(L){
+  const fp=[]; (L.platforms||[]).forEach(p=>fp.push({x:p[0],z:p[1],r:Math.max(p[2],p[3])/2}));
+  (L.movers||[]).forEach(m=>fp.push({x:m[0],z:m[1],r:Math.max(m[2],m[3])/2+m[7]}));
+  (L.spinners||[]).forEach(s=>fp.push({x:s[0],z:s[1],r:s[2]/2}));
+  for(let i=0;i<fp.length;i++)for(let j=i+1;j<fp.length;j++){ if(Math.hypot(fp[i].x-fp[j].x,fp[i].z-fp[j].z)<fp[i].r+fp[j].r-0.6) return false; }
+  for(const st of (L.stars||[])){ if(st[1]<=1.6) continue; let ok=false;
+    for(const p of (L.platforms||[])){ if(Math.abs(st[0]-p[0])<p[2]/2+0.6 && Math.abs(st[2]-p[1])<p[3]/2+0.6 && p[4]<=3.0 && st[1]-p[4]>=0.3 && st[1]-p[4]<=1.4){ ok=true; break; } }
+    if(!ok) for(const m of (L.movers||[])){ if(Math.abs(st[0]-m[0])<1.0 && Math.abs(st[2]-m[1])<1.0 && m[4]<=3.0 && st[1]-m[4]<=1.6){ ok=true; break; } }
+    if(!ok) return false; }
+  return (L.stars||[]).length>=4;
+}
+const LEVELS=[];
+for(let i=0;i<100;i++){ let L=genLevel(i,0), tr=0; while(!validateLevel(L) && tr<30){ L=genLevel(i, tr+1); tr++; } LEVELS.push(L); }
 let levelIdx = 0;
 function clearLevel(){
   for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
@@ -253,6 +294,7 @@ function buildLevel(idx){
   (L.pads||[]).forEach(p=>addPad(p[0],p[1]));
   (L.stars||[]).forEach(s=>addStar(s[0],s[1],s[2]));
   total=stars.length; STAR_T=L.thresholds||[55,85]; scEl.textContent='0/'+total;
+  const gc=GROUND[L.world||0]; island.material.color.set(gc[0]); grass.material.color.set(gc[1]);   // 按世界换地色
 }
 // 逐关进度（最佳时间/星级/解锁/下一关）——世界地图与通关庆祝都会用到
 function levelBest(i){ const b=parseFloat(localStorage.getItem('bean_lv'+i+'_best')); return isNaN(b)?null:b; }
@@ -280,7 +322,7 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(0,3,6); vel.set(0,0,0); vy=0; }
+  player.position.set(0,3,0); vel.set(0,0,0); vy=0; }
 function startGame(){ A.init(); resetRun(); state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
 function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
 function showWin(){ running=false; state='results';
@@ -297,11 +339,13 @@ function showWin(){ running=false; state='results';
   const prevTot=+(localStorage.getItem('bean_totalStars')||0), tot=prevTot+total; try{ localStorage.setItem('bean_totalStars',String(tot)); }catch(e){}
   const newSkins=SKINS.filter(s=> s.need>prevTot && s.need<=tot).map(s=>s.name);
   wbEl.innerHTML = (rec?'🏆 新纪录！':'最佳 '+best.toFixed(1)+'s') + (newSkins.length?' · 🎉解锁皮肤「'+newSkins.join('、')+'」':'');
+  document.getElementById('next').style.display = (levelIdx+1<LEVELS.length)?'':'none';
   winEl.classList.add('show'); A.win(); }
 const restart = startGame;                                  // 兼容旧调试钩子
 document.getElementById('play').addEventListener('click', startGame);
 document.getElementById('again').addEventListener('click', startGame);
 document.getElementById('tomenu').addEventListener('click', toMenu);
+document.getElementById('next').addEventListener('click', nextLevel);
 // 分享成绩（虚拟传播：navigator.share / 复制到剪贴板）
 const shareBtn=document.getElementById('share');
 function shareText(){ return `我在《豆豆冲冲冲》用 ${wtEl.textContent}s ${wsEl.textContent} 通关！⚡ 来挑战你的最快时间 → ${location.href.split('#')[0]}`; }
@@ -573,7 +617,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
