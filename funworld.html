@@ -296,17 +296,25 @@ const GROUND=[[0x9fe6b4,0xb6efbf],[0xffc8de,0xffd9e8],[0xcdeeff,0xe0f4ff],[0xffd
   [0xb8ecd8,0xcdf3e6],[0xffe6a8,0xfff0c8],[0xffd9e0,0xffe8ee],[0xd0e4ff,0xe0eeff],[0xffe0b0,0xffeccc]];
 const WORLD_NAMES=['糖果草原','棉花糖山','薄荷冰原','蜜糖落日','霓虹梦境','翡翠森林','黄金沙丘','彩虹工厂','云端天阶','庆典终焉'];
 const DECOR_FP=[[-16,-2,1.5],[14,10,1.35],[-3,-15,1.25],[17,-12,1.75],[-18,12,1.3],[-20,-10,1.6],[20,4,1.6],[6,-18,1.6]]; // 永久装饰占位，生成器避开
+const ARCHES=[   // 地形布局原型（按关轮换，让每关结构不同）
+  {radMin:0.25,radMax:1.0, hw:[1.6,2.6]},   // 散布
+  {radMin:0.6, radMax:1.0, hw:[1.6,2.4]},   // 环形（外圈，中心开阔）
+  {radMin:0.25,radMax:1.0, hw:[1.2,1.7]},   // 踏石（密集小台）
+  {radMin:0.25,radMax:0.6, hw:[1.8,2.7]},   // 核心（中心聚集）
+];
 function genLevel(idx, salt){
   const rng=mulberry32((((idx+1)*2654435761) ^ ((salt||0)*40503))>>>0);
   const world=Math.min(9,Math.floor(idx/10)), t=idx/99, pal=PALETTES[world];
   const col=()=>pal[(rng()*pal.length)|0];
+  const arch=ARCHES[(idx*7+world*3)%ARCHES.length];   // 本关地形布局原型
   const numStars=Math.round(5+t*11), R=13+t*15, maxTop=0.8+t*1.6;
   const useSprings=world>=1, useMovers=world>=2, useSpinners=world>=3;   // 按世界引入：W1跑跳→W2弹簧→W3移动→W4旋转
   const numMovers=useMovers?Math.round(0.6+t*2.2):0, numSpinners=useSpinners?Math.round((world-2)*0.3+t*2.0):0;
   const spinSpd=1.2+t*1.5, movSpd=0.4+t*0.5, movRange=3.5+t*2.5, barH=world>=6?1.4:1.1;
   const placed=DECOR_FP.map(d=>({x:d[0],z:d[1],r:d[2]}));
   const free=(x,z,r)=>{ if(Math.hypot(x,z)<5) return false; if(Math.hypot(x,z)>R-r-0.5) return false; for(const p of placed){ if(Math.hypot(x-p.x,z-p.z)<r+p.r+1.0) return false; } return true; };
-  const spot=(r)=>{ for(let k=0;k<60;k++){ const a=rng()*6.2832, rad=5+rng()*(R-5-r); const x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,r)){ placed.push({x,z,r}); return [x,z]; } } return null; };
+  const spot=(r)=>{ const rmin=Math.max(5,R*arch.radMin), rmax=Math.max(rmin+1,Math.min(R-r-0.5,R*arch.radMax));
+    for(let k=0;k<60;k++){ const a=rng()*6.2832, rad=rmin+rng()*(rmax-rmin); const x=+(Math.cos(a)*rad).toFixed(2), z=+(Math.sin(a)*rad).toFixed(2); if(free(x,z,r)){ placed.push({x,z,r}); return [x,z]; } } return null; };
   const platforms=[],movers=[],spinners=[],pads=[],stars=[]; let remaining=numStars;
   // 终点门：每关都有，先在远处地面占一个位（带兜底，保证一定有终点）
   let goalPos=null;
@@ -324,7 +332,7 @@ function genLevel(idx, salt){
     const s=spot(Math.max(hw,hd)+movRange); if(s){ movers.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col(),axis,+movRange.toFixed(1),+movSpd.toFixed(2)]); stars.push([s[0],+(top+1.2).toFixed(2),s[1]]); remaining--; } } }
   // 平台星（其余）
   let guard=0;
-  while(remaining>0 && guard++<300){ const hw=1.6+rng()*1.0, hd=1.6+rng()*1.0, top=+(0.8+rng()*(maxTop-0.8)).toFixed(2);
+  while(remaining>0 && guard++<300){ const hw=arch.hw[0]+rng()*(arch.hw[1]-arch.hw[0]), hd=arch.hw[0]+rng()*(arch.hw[1]-arch.hw[0]), top=+(0.8+rng()*(maxTop-0.8)).toFixed(2);
     const s=spot(Math.max(hw,hd)); if(s){ platforms.push([s[0],s[1],+(hw*2).toFixed(2),+(hd*2).toFixed(2),top,col()]); stars.push([s[0],+(top+1.0).toFixed(2),s[1]]); remaining--; } }
   // 旋转机关（W4 起，W7+ 横杆抬高更险）
   for(let i=0;i<numSpinners;i++){ const len=+(6+rng()*3.5).toFixed(1); const s=spot(len/2+0.4); if(s){ spinners.push([s[0],s[1],len,+(spinSpd*(rng()<0.5?1:-1)).toFixed(2),barH]); } }
