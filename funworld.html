@@ -52,6 +52,30 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 @keyframes flashWipe{0%{opacity:0}30%{opacity:.5}100%{opacity:0}}
 .confetti{position:fixed;top:-14px;width:9px;height:14px;z-index:18;pointer-events:none;border-radius:2px;animation:confFall linear forwards}
 @keyframes confFall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(112vh) rotate(760deg);opacity:.85}}
+/* 世界地图 */
+#map{position:fixed;inset:0;z-index:9;display:none;background:#cdeeff;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#map.show{display:block}
+.map-top{position:sticky;top:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;
+  background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.map-top button{font-family:inherit;font-weight:800;font-size:15px;color:#ff6f91;background:#fff;border:3px solid #ffd0dd;border-radius:20px;padding:7px 16px;cursor:pointer;box-shadow:0 3px 0 #ffd0dd}
+.map-top button:active{transform:translateY(2px);box-shadow:0 1px 0 #ffd0dd}
+.map-top .prog{font-weight:800;color:#56708a;font-size:15px}
+.map-top .prog b{color:#e98a00}
+.world{position:relative;padding:0 0 6px}
+.world-banner{position:sticky;top:54px;z-index:3;text-align:center;padding:9px;font-weight:800;color:#fff;font-size:19px;text-shadow:0 2px 0 rgba(0,0,0,.16),0 3px 8px rgba(0,0,0,.12)}
+.track{position:relative;height:540px;margin:0 auto;max-width:540px}
+.node{position:absolute;width:54px;height:54px;margin:-27px;border-radius:50%;border:4px solid #fff;cursor:pointer;
+  display:grid;place-items:center;font-weight:800;color:#fff;font-size:16px;box-shadow:0 5px 0 rgba(0,0,0,.16),0 8px 14px rgba(0,0,0,.12);transition:transform .12s}
+.node:hover{transform:scale(1.12)}
+.node.lock{background:#bcc8d2;filter:saturate(.4);cursor:default;box-shadow:0 4px 0 #9fb0bd}
+.node.open{background:#ff9bb3}
+.node.done{background:#ffd34d;color:#9a6b00;box-shadow:0 5px 0 #e0a000,0 8px 14px rgba(0,0,0,.12)}
+.node.current{animation:nodePulse 1.4s infinite}
+@keyframes nodePulse{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.16),0 0 0 0 rgba(255,90,138,.55)}55%{box-shadow:0 5px 0 rgba(0,0,0,.16),0 0 0 15px rgba(255,90,138,0)}}
+.node .ms{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:1px;color:#ffd34d;text-shadow:0 1px 2px rgba(0,0,0,.3);white-space:nowrap}
+.node .lk{font-size:20px;filter:grayscale(.3)}
+.node.current::after{content:'🫧';position:absolute;top:-30px;font-size:24px;animation:bob 1s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 #win .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 #mute{position:fixed;left:18px;top:64px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;
   cursor:pointer;font-size:17px;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
@@ -69,6 +93,8 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 #start #play{font-family:inherit;font-weight:800;font-size:25px;color:#fff;background:#ff8fb0;border:none;border-radius:30px;
   padding:15px 48px;cursor:pointer;box-shadow:0 8px 0 #e26d92,0 14px 24px rgba(0,0,0,.2)}
 #start #play:active{transform:translateY(4px);box-shadow:0 4px 0 #e26d92}
+#start #tomap{display:block;margin:12px auto 0;font-family:inherit;font-weight:800;font-size:15px;color:#1d8fd6;background:#fff;border:3px solid #8ad0ff;border-radius:22px;padding:9px 24px;cursor:pointer;box-shadow:0 5px 0 #57b3ee}
+#start #tomap:active{transform:translateY(3px);box-shadow:0 2px 0 #57b3ee}
 #start .stats{margin-top:20px;font-weight:700;font-size:15px;color:#56708a}
 #start .stats b{color:#e98a00}
 #start .ctl{margin-top:14px;font-size:13px;color:#7c93a6}
@@ -123,7 +149,8 @@ body.playing #title,body.playing #score,body.playing #timer,body.playing #hint{o
 <div id="load">豆豆乐园 载入中…</div>
 <div id="win"><div class="card"><div class="banner" id="wbanner">🎉 通关！</div><div class="lvname" id="wlv"></div><div class="stars" id="ws"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="next">下一关 →</button><button id="again" class="ghost">再玩</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
 <div id="flash"></div>
-<div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
+<div id="map"><div class="map-top"><button id="mback">◀ 标题</button><span class="prog">⭐<b id="mTot">0</b> · 已通 <b id="mDone">0</b>/100</span></div><div id="mapWorlds"></div></div>
+<div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><button id="tomap">🗺️ 选关地图</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
 
 <script type="importmap">
 { "imports": {
@@ -363,7 +390,7 @@ function refreshStartStats(){ const b=parseFloat(localStorage.getItem('bean_best
   startStatsEl.innerHTML = l1+'<br>'+l2; renderSkins(); }
 function resetRun(){ stars.forEach(s=>{ if(!s.alive){ s.alive=true; levelGroup.add(s.m); } s.m.position.set(s.bx,s.base,s.bz); }); score=0; scEl.textContent='0/'+total;
   timeMs=0; combo=0; bonusMs=0; lastCollectMs=-9999; comboEl.classList.remove('on'); tmEl.textContent='0.0';
-  player.position.set(0,3,0); vel.set(0,0,0); vy=0; }
+  player.position.set(0,3,0); vel.set(0,0,0); vy=0; groundSolid=null; stun=0; clock=0; }
 function startGame(){ A.init(); resetRun(); state='play'; running=true; startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.add('playing'); }
 function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats(); startEl.classList.add('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); }
 function showWin(){ running=false; state='results';
@@ -382,7 +409,7 @@ function showWin(){ running=false; state='results';
   wbEl.innerHTML = (rec?'🏆 新纪录！':'最佳 '+best.toFixed(1)+'s') + (newSkins.length?' · 🎉解锁皮肤「'+newSkins.join('、')+'」':'');
   celebrate(rating, secs, rec); }
 const restart = startGame;                                  // 兼容旧调试钩子
-document.getElementById('play').addEventListener('click', startGame);
+document.getElementById('play').addEventListener('click', ()=>{ buildLevel(curLevel()); startGame(); });
 document.getElementById('again').addEventListener('click', startGame);
 document.getElementById('tomenu').addEventListener('click', toMenu);
 document.getElementById('next').addEventListener('click', nextLevel);
@@ -394,6 +421,33 @@ function shareResult(){ A.init(); const text=shareText(), url=location.href.spli
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>{ shareBtn.textContent='已复制 ✓'; setTimeout(()=>{shareBtn.textContent='分享 📤';},1600); }).catch(()=>{ shareBtn.textContent='手动复制'; }); }
   else { shareBtn.textContent='不支持'; } }
 shareBtn.addEventListener('click', shareResult);
+// ---- 世界地图（10 世界 × 10 节点）----
+const mapEl=document.getElementById('map'), worldsEl=document.getElementById('mapWorlds');
+function curLevel(){ let m=0; for(let i=0;i<LEVELS.length;i++){ if(levelBest(i)!==null) m=i+1; } return Math.min(m, LEVELS.length-1); }
+function buildMap(){ worldsEl.innerHTML=''; let doneN=0, totS=0; const cur=curLevel();
+  for(let w=0; w<10; w++){ const sec=document.createElement('section'); sec.className='world';
+    const top=PALETTES[w][0].toString(16).padStart(6,'0'), bot=GROUND[w][1].toString(16).padStart(6,'0');
+    sec.style.background='linear-gradient(168deg,#'+top+',#'+bot+')';
+    let ws=0; for(let j=0;j<10;j++) ws+=levelStars(w*10+j);
+    const ban=document.createElement('div'); ban.className='world-banner'; ban.textContent=(w+1)+' · '+WORLD_NAMES[w]+'  ⭐'+ws+'/30'; sec.appendChild(ban);
+    const track=document.createElement('div'); track.className='track';
+    for(let j=0;j<10;j++){ const i=w*10+j, unlocked=levelUnlocked(i), done=levelBest(i)!==null;
+      if(done) doneN++; totS+=levelStars(i);
+      const node=document.createElement('a'); node.className='node '+(done?'done':(unlocked?'open':'lock'))+(i===cur?' current':'');
+      node.style.left=(50+30*Math.sin(j*0.85))+'%'; node.style.top=(28+j*52)+'px';
+      if(!unlocked) node.innerHTML='<span class="lk">🔒</span>';
+      else if(done){ const st=levelStars(i); node.innerHTML=(i+1)+'<span class="ms">'+('★'.repeat(st)+'☆'.repeat(3-st))+'</span>'; }
+      else node.textContent=(i+1);
+      if(unlocked) node.addEventListener('click',()=>{ A.init(); closeMap(); buildLevel(i); startGame(); });
+      track.appendChild(node); }
+    sec.appendChild(track); worldsEl.appendChild(sec); }
+  document.getElementById('mDone').textContent=doneN; document.getElementById('mTot').textContent=totS;
+}
+function openMap(){ A.init(); buildMap(); startEl.classList.remove('show'); winEl.classList.remove('show'); document.body.classList.remove('playing'); state='menu'; running=false; mapEl.classList.add('show');
+  setTimeout(()=>{ const c=mapEl.querySelector('.node.current'); if(c&&c.scrollIntoView) c.scrollIntoView({block:'center'}); },40); }
+function closeMap(){ mapEl.classList.remove('show'); }
+document.getElementById('tomap').addEventListener('click', openMap);
+document.getElementById('mback').addEventListener('click', ()=>{ closeMap(); toMenu(); });
 // 标题 UI 在皮肤数据定义后再统一初始化（见皮肤区块末尾）
 
 // ============ 豆豆角色（程序化 + Q 弹动画）============
@@ -642,7 +696,7 @@ function tick(dt){
   // 云飘
   for(const c of clouds){ c.position.x+=dt*0.4; if(c.position.x>60)c.position.x=-60; }
 }
-player.position.set(0,3,6);
+player.position.set(0,3,0);
 camera.position.set(0,6,14); camera.lookAt(0,1,0);
 
 // ---- 后处理（MSAA 渲染目标保清晰 + 轻辉光）----
@@ -658,7 +712,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
