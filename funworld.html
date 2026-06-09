@@ -565,7 +565,7 @@ function sprintDust(){ const N=5,pos=new Float32Array(N*3),vel=[];
 // ============ 音效（Web Audio 程序化合成，无音频文件）============
 let actx=null, muted = localStorage.getItem('bean_muted')==='1';
 const A = {
-  init(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } } if(actx.state==='suspended') actx.resume(); },
+  init(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } } if(actx.state==='suspended') actx.resume(); startMusic(); },
   tone(freq,dur,type,gain,slideTo){ if(!actx||muted) return; const t=actx.currentTime;
     const o=actx.createOscillator(), g=actx.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(freq,t);
     if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
@@ -579,11 +579,19 @@ const A = {
   win(){ [523,659,784,1047,1319].forEach((n,i)=>setTimeout(()=>this.tone(n,0.2,'triangle',0.18,n*1.01), i*110)); },
   ding(i){ const f=[660,880,1175][Math.min(i,2)]; this.tone(f,0.2,'triangle',0.2,f*1.4); },
 };
+// 轻柔环境背景音乐（程序化软 pad，C-Am-F-G 慢循环，受静音控制）
+let musicGain=null, musicTimer=null, musicStep=0;
+const MCHORDS=[[130.8,164.8,196.0],[110.0,130.8,164.8],[87.3,110.0,130.8],[98.0,123.5,146.8]];
+function musicChord(){ if(!actx||muted||!musicGain) return; const t=actx.currentTime, dur=7.5;
+  MCHORDS[musicStep%MCHORDS.length].forEach(f=>{ const o=actx.createOscillator(), g=actx.createGain(); o.type='triangle'; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.04,t+2.8); g.gain.setValueAtTime(0.04,t+dur-3); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(musicGain); o.start(t); o.stop(t+dur+0.12); }); musicStep++; }
+function startMusic(){ if(musicTimer||!actx) return; if(!musicGain){ musicGain=actx.createGain(); musicGain.gain.value=muted?0:0.4; musicGain.connect(actx.destination); } musicChord(); musicTimer=setInterval(musicChord,6500); }
 addEventListener('pointerdown',()=>A.init()); addEventListener('keydown',()=>A.init());
 // 静音开关
 const muteBtn=document.getElementById('mute');
 function updateMute(){ muteBtn.textContent = muted?'🔇':'🔊'; }
-muteBtn.addEventListener('click',()=>{ muted=!muted; try{localStorage.setItem('bean_muted', muted?'1':'0');}catch(e){} updateMute(); if(!muted){ A.init(); A.collect(3); } });
+muteBtn.addEventListener('click',()=>{ muted=!muted; try{localStorage.setItem('bean_muted', muted?'1':'0');}catch(e){} updateMute(); if(musicGain) musicGain.gain.value=muted?0:0.4; if(!muted){ A.init(); A.collect(3); } });
 updateMute();
 
 // ============ 输入 ============
@@ -766,7 +774,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, openMap, buildMap, curLevel, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};} };
 console.log('[豆豆乐园] ready · WASD 移动 · 空格跳 · Shift 冲刺 · 踩弹簧 · 收星星');
 </script>
 </body>
