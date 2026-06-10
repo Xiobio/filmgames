@@ -93,6 +93,8 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 #mute{position:fixed;left:18px;top:64px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;
   cursor:pointer;font-size:17px;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
 #mute:active{transform:translateY(2px);box-shadow:0 2px 0 #57b3ee}
+#langBtn{position:fixed;left:18px;top:108px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;cursor:pointer;font-size:14px;font-weight:800;color:#1d8fd6;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
+#langBtn:active{transform:translateY(2px);box-shadow:0 2px 0 #57b3ee}
 #win button.ghost{background:#fff;color:#ff6f91;border:3px solid #ffd0dd;box-shadow:0 5px 0 #ffd0dd;font-size:17px;padding:12px 22px}
 #win button.ghost:active{transform:translateY(2px);box-shadow:0 3px 0 #ffd0dd}
 /* 标题页 */
@@ -166,6 +168,7 @@ body.playing #obj{opacity:1}
 <div id="combo"></div>
 <div id="obj"></div>
 <button id="mute" title="音效开关">🔊</button>
+<button id="langBtn" title="语言 / Language">EN</button>
 <div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
 <div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
 <div id="load">豆豆乐园 载入中…</div>
@@ -191,6 +194,66 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 // 不兜底会导致脚本在加载期直接崩、永远卡在"载入中"。此处探测失败则退化为内存存储，保证游戏一定能启动（仅进度不持久化）。
 const LS = (()=>{ try{ const S=window['local'+'Storage']; const k='__bean_t'; S.setItem(k,k); S.removeItem(k); return S; }
   catch(e){ const m={}; return { getItem:k=>(k in m?m[k]:null), setItem:(k,v)=>{ m[k]=String(v); }, removeItem:k=>{ delete m[k]; } }; } })();
+
+// ============ 多语言 i18n（中文 + English；按浏览器语言自动选择，可一键切换，保留中文）============
+let lang = (()=>{ try{ const s=LS.getItem('bean_lang'); if(s==='zh'||s==='en') return s; }catch(e){} return (navigator.language||'en').toLowerCase().indexOf('zh')===0 ? 'zh':'en'; })();
+const isTouchDev = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
+const T = {
+ zh:{
+  logo:'豆豆冲冲冲', sub:'BEAN DASH · 卡通 3D 闯关跑酷',
+  play:'▶ 开始游戏', tomap:'🗺️ 选关地图', todaily:'📅 每日挑战', jbtn:'跳', mback:'◀ 标题', loading:'豆豆乐园 载入中…', langBtn:'EN',
+  next:'下一关 →', retry:'再玩', share:'分享 📤', menu:'标题', shareCopied:'已复制 ✓', shareManual:'手动复制', winClear:'🎉 通关！',
+  ctlD:'<b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间',
+  ctlM:'摇杆 移动 · <b>跳</b>钮 跳 · 推满摇杆 冲刺 · 滑动转视角 · 收齐 ⭐ 冲最快',
+  hintD:'<span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span>',
+  hintM:'<span>摇杆 移动</span><span><b>跳</b>钮 跳</span><span>推满 冲刺</span><span>滑动 转视角</span><span>收齐全部 <b>⭐</b> 冲最快！</span>',
+  objAll:'🏁 收齐全部 ⭐ 再冲终点！', objOpen:'🏁 终点门已开启 → 冲！', objDaily:'📅 今日挑战 · 收齐 ⭐ 冲终点！',
+  objProg:(s,t)=>`⭐ ${s}/${t} → 收齐后冲终点`, objPenalty:(n)=>`❌ 还差 ${n} 颗 ⭐！(罚 +2s)`, objGentle:(n)=>`还差 ${n} 颗 ⭐ 才能开门哦~`,
+  coach:'🕹️ <b>WASD / 摇杆</b> 跑动 · <b>空格 / 跳钮</b> 跳<br>收齐所有 ⭐ → 再冲<b>终点门</b>！',
+  friend:(t)=>`🎯 好友成绩 ${t}s · 打败他！`, combo:(n)=>`连击 x${n}`,
+  newRec:'🏆 新纪录！', best:(b)=>`最佳 ${b}s`, unlock:(n)=>`🎉解锁皮肤「${n}」`,
+  bonus:(raw,b)=>`原始 ${raw}s − 连击奖励 ${b}s`, timeUsed:(raw)=>`用时 ${raw}s`,
+  dRec:'🏆 今日新纪录！', dBest:(b)=>`今日最佳 ${b}s`, streakSuf:(n)=>` · 🔥连续 ${n} 天`,
+  stBest:(b,s,p)=>`最佳 <b>${b}s</b> · ${s} · 已玩 ${p} 局`, stFirst:(n)=>`首次游玩 · 收齐 ${n} ⭐ 冲最快时间！`,
+  stTot:(n)=>`累计 ⭐${n}`, stStreak:(n)=>` · 🔥每日连胜 <b>${n}</b> 天`, stNext:(name,n)=>` · 距「${name}」还需 <b>${n}</b>⭐`, stAll:' · 皮肤已集齐 🎉',
+  mapProg:(tot,done)=>`⭐<b>${tot}</b> · 已通 <b>${done}</b>/100`,
+  shareLv:(lv,stars,t,url)=>`豆豆冲冲冲 · ${lv}\n${stars}  ${t}s\n点开直接挑战、打败我 👉 ${url}`,
+  shareDaily:(stars,t,url)=>`豆豆冲冲冲 · 每日挑战\n${stars}  ${t}s\n点开抢今天最快 👉 ${url}`,
+  worlds:['糖果草原','棉花糖山','薄荷冰原','蜜糖落日','霓虹梦境','翡翠森林','黄金沙丘','彩虹工厂','云端天阶','庆典终焉'],
+ },
+ en:{
+  logo:'Bean Dash', sub:'BEAN DASH · Cartoon 3D Obstacle Run',
+  play:'▶ Play', tomap:'🗺️ Level Map', todaily:'📅 Daily', jbtn:'JUMP', mback:'◀ Menu', loading:'Bean Dash Loading…', langBtn:'中',
+  next:'Next →', retry:'Retry', share:'Share 📤', menu:'Menu', shareCopied:'Copied ✓', shareManual:'Copy it', winClear:'🎉 Clear!',
+  ctlD:'<b>WASD</b>/Stick Move · <b>Space</b> Jump · <b>Shift</b> Sprint · Collect ⭐, beat the clock',
+  ctlM:'Stick Move · <b>Jump</b> Btn · Push to Sprint · Swipe to Look · Collect ⭐, go fast',
+  hintD:'<span><b>WASD</b> Move</span><span><b>Space</b> Jump</span><span><b>Shift</b> Sprint</span><span>Drag to look</span><span>Collect all <b>⭐</b>, beat the clock!</span>',
+  hintM:'<span>Stick Move</span><span><b>Jump</b> Btn</span><span>Push=Sprint</span><span>Swipe look</span><span>Collect all <b>⭐</b>, go fast!</span>',
+  objAll:'🏁 Collect all ⭐, then reach the goal!', objOpen:'🏁 Goal open → GO!', objDaily:'📅 Daily · Collect ⭐, reach the goal!',
+  objProg:(s,t)=>`⭐ ${s}/${t} → reach goal after collecting`, objPenalty:(n)=>`❌ ${n} ⭐ left! (+2s)`, objGentle:(n)=>`${n} ⭐ left to open the goal~`,
+  coach:'🕹️ <b>WASD / Stick</b> Run · <b>Space / Btn</b> Jump<br>Collect all ⭐ → reach the <b>Goal</b>!',
+  friend:(t)=>`🎯 Rival: ${t}s · Beat it!`, combo:(n)=>`Combo x${n}`,
+  newRec:'🏆 New record!', best:(b)=>`Best ${b}s`, unlock:(n)=>`🎉Unlocked skin "${n}"`,
+  bonus:(raw,b)=>`Raw ${raw}s − Combo bonus ${b}s`, timeUsed:(raw)=>`Time ${raw}s`,
+  dRec:'🏆 Daily record!', dBest:(b)=>`Daily best ${b}s`, streakSuf:(n)=>` · 🔥${n}-day streak`,
+  stBest:(b,s,p)=>`Best <b>${b}s</b> · ${s} · ${p} plays`, stFirst:(n)=>`First run · Collect ${n} ⭐, beat the clock!`,
+  stTot:(n)=>`Total ⭐${n}`, stStreak:(n)=>` · 🔥${n}-day streak`, stNext:(name,n)=>` · ${n}⭐ to "${name}"`, stAll:' · All skins! 🎉',
+  mapProg:(tot,done)=>`⭐<b>${tot}</b> · <b>${done}</b>/100 cleared`,
+  shareLv:(lv,stars,t,url)=>`Bean Dash · ${lv}\n${stars}  ${t}s\nOpen & beat my time 👉 ${url}`,
+  shareDaily:(stars,t,url)=>`Bean Dash · Daily\n${stars}  ${t}s\nOpen & grab today's best 👉 ${url}`,
+  worlds:['Candy Meadow','Marshmallow Hills','Mint Tundra','Honey Sunset','Neon Dream','Emerald Forest','Golden Dunes','Rainbow Factory','Sky Steps','Grand Finale'],
+ }
+};
+function t(k,...a){ const v=(T[lang]&&T[lang][k]!=null)?T[lang][k]:T.zh[k]; return typeof v==='function'?v(...a):(v!=null?v:k); }
+function applyStaticLang(){ document.documentElement.lang = lang==='zh'?'zh-CN':'en';
+  document.querySelectorAll('.logo, #title .t').forEach(e=>e.textContent=t('logo'));
+  document.querySelectorAll('.sub, #title .s').forEach(e=>e.textContent=t('sub'));
+  const id=(i,v,html)=>{ const e=document.getElementById(i); if(e){ if(html)e.innerHTML=v; else e.textContent=v; } };
+  id('play',t('play')); id('tomap',t('tomap')); id('todaily',t('todaily')); id('jbtn',t('jbtn')); id('mback',t('mback'));
+  id('load',t('loading')); id('next',t('next')); id('again',t('retry')); id('tomenu',t('menu')); id('share',t('share')); id('langBtn',t('langBtn'));
+  const ctl=document.querySelector('#start .ctl'); if(ctl) ctl.innerHTML=isTouchDev?t('ctlM'):t('ctlD');
+  const hint=document.getElementById('hint'); if(hint) hint.innerHTML=isTouchDev?t('hintM'):t('hintD'); }
+function toggleLang(){ lang=lang==='zh'?'en':'zh'; try{LS.setItem('bean_lang',lang);}catch(e){} applyStaticLang(); if(typeof refreshStartStats==='function') refreshStartStats(); }
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
@@ -934,11 +997,10 @@ const touch={x:0,y:0};
   const jb=document.getElementById('jbtn');
   jb.addEventListener('pointerdown',e=>{e.preventDefault(); jumpBufMs=timeMs; jumpHeld=true; jump();});
   const jbUp=e=>{ jumpHeld=false; if(vy>4&&!grounded) vy*=0.45; }; jb.addEventListener('pointerup',jbUp); jb.addEventListener('pointercancel',jbUp);
-  if(matchMedia('(pointer:coarse)').matches||'ontouchstart'in window){ document.getElementById('mob').classList.add('on');
-    const h=document.getElementById('hint'); if(h) h.innerHTML='<span>摇杆 移动</span><span><b>跳</b>钮 跳</span><span>推满 冲刺</span><span>滑动 转视角</span><span>收齐全部 <b>⭐</b> 冲最快！</span>';
-    const c=document.querySelector('#start .ctl'); if(c) c.innerHTML='摇杆 移动 · <b>跳</b>钮 跳 · 推满摇杆 冲刺 · 滑动转视角 · 收齐 ⭐ 冲最快';
-  }
+  if(isTouchDev){ document.getElementById('mob').classList.add('on'); }   // 操作提示文案由 applyStaticLang 按语言+触屏统一设置
+  document.getElementById('langBtn').addEventListener('click', toggleLang);
 }
+applyStaticLang();   // 启动即按当前语言铺好所有静态界面文案
 // 触屏单指滑动转视角：摇杆/跳钮之外的触点拖动相机（绕弯/螺旋关必需，否则手机看不到前路）
 { let camPid=null, clx=0, cly=0;
   canvas.addEventListener('pointerdown',e=>{ if(e.pointerType!=='touch') return; if(camPid===null){ camPid=e.pointerId; clx=e.clientX; cly=e.clientY; try{canvas.setPointerCapture(e.pointerId);}catch(_){} } });
