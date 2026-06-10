@@ -397,6 +397,15 @@ function addCrusher(x,z,platTop,spd){
   crushers.push({ mesh:m, x, z, hw, hd, hh, yHigh, yLow, spd, ph:crushers.length*1.3, cd:0 });
 }
 
+// ---- 闪现平台（按节奏实心/虚化，趁实心时踩过，消失时会穿落）----
+const blinks=[];
+function addBlink(x,z,w,d,top,color,period,ph){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,top,d), new THREE.MeshStandardMaterial({color,roughness:0.5,transparent:true,emissive:color,emissiveIntensity:0.22}));
+  m.position.set(x,top/2,z); m.castShadow=m.receiveShadow=true; levelGroup.add(m);
+  const s={ box:true, minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2, top, dyn:true, blinkOff:false };
+  solids.push(s); blinks.push({ mesh:m, s, period, ph:(ph||0) });
+}
+
 // ---- 装饰：糖果色障碍 + 云 ----
 function blob(x,y,z,r,color,rough){ const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,2),
   new THREE.MeshStandardMaterial({ color, roughness:rough==null?0.6:rough, flatShading:false })); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; scene.add(m);
@@ -529,7 +538,7 @@ function finalizeCourse(idx, salt, o){
     const dx=Math.abs(b.x-a.x), dz=Math.abs(b.z-a.z);
     if((dx>0.1)===(dz>0.1)) return null;                                // 必须恰好差一个轴（否则会出斜向坏斜坡）
     const cd=dx>dz?dx:dz; if(cd-psize<0.3 || cd-psize>60) return null; } // 斜坡须有正宽度
-  const platforms=[], ramps=[], movers=[], spinners=[], pendulums=[], pads=[], lifts=[], stars=[], conveyors=[], crusherList=[];
+  const platforms=[], ramps=[], movers=[], spinners=[], pendulums=[], pads=[], lifts=[], stars=[], conveyors=[], crusherList=[], blinkList=[];
   const ptopOf = p => Math.max(0.6, +(+p.top).toFixed(2));
   const mechMax = (trunkLastIdx!=null?trunkLastIdx:path.length-1);     // 机关/终点只用主干（分叉支路除外）
   const inBr = i => !!(branchSet && branchSet.has(i));
@@ -542,11 +551,14 @@ function finalizeCourse(idx, salt, o){
   if(world>=4){ const nm=1+Math.round(t*2); for(let k=0;k<nm;k++){ const ci=2+((rng()*(selN-3))|0); if(isStraight(ci)) moverCells.add(ci); } }
   const convCells=new Set();
   if(world>=6){ const nc=1+Math.round((t-0.55)*4); for(let k=0;k<Math.max(1,nc);k++){ const ci=2+((rng()*(selN-3))|0); if(isStraight(ci)&&!moverCells.has(ci)) convCells.add(ci); } }
+  const blinkCells=new Set();
+  if(world>=8){ const nb=1+Math.round((t-0.75)*5); for(let k=0;k<Math.max(1,nb);k++){ const ci=2+((rng()*(selN-3))|0); if(ci>1&&ci<mechMax&&!inBr(ci)&&!moverCells.has(ci)&&!convCells.has(ci)) blinkCells.add(ci); } }   // 闪现台不滑动，任意中段格皆可(含拐角)
   for(let i=0;i<path.length;i++){ const p=path[i], ptop=ptopOf(p);
     if(moverCells.has(i)){ const a=path[parent[i]]; const axis=(Math.abs(p.x-a.x)>0.1)?'z':'x';
       movers.push([p.x,p.z,psize,psize,ptop,col(),axis,+(0.8+t*0.4).toFixed(1),+(0.4+t*0.4).toFixed(2)]);
     } else if(convCells.has(i)){ const a=path[parent[i]]; const axis=(Math.abs(p.x-a.x)>0.1)?'x':'z';
       conveyors.push([p.x,p.z,psize,psize,ptop,0x6fd1ad,axis,(rng()<0.5?1:-1),+(2+t*1.5).toFixed(2)]);
+    } else if(blinkCells.has(i)){ blinkList.push([p.x,p.z,psize,psize,ptop,0xffd36e,+(1.1+t*0.5).toFixed(2),+((i*1.7)%6.283).toFixed(2)]);
     } else platforms.push([p.x,p.z,psize,psize,ptop,col()]);
     stars.push([p.x,+(ptop+1.0).toFixed(2),p.z]);
     const pj=parent[i]; if(pj!=null){ const a=path[pj], aTop=ptopOf(a), bTop=ptop;
@@ -559,11 +571,11 @@ function finalizeCourse(idx, salt, o){
   if(world>=2){ spinners.push([path[0].x, path[0].z, +(5+rng()*2+t*1.5).toFixed(1), +((1.2+t*1.3)*(rng()<0.5?1:-1)).toFixed(2), 1.1]); }
   const usedHaz=new Set();
   if(world>=7){ const ncr=1+Math.round((t-0.7)*5);
-    const cids=[]; for(let k=1;k<mechMax;k++) if(!moverCells.has(k)&&!convCells.has(k)&&!inBr(k)) cids.push(k);
+    const cids=[]; for(let k=1;k<mechMax;k++) if(!moverCells.has(k)&&!convCells.has(k)&&!blinkCells.has(k)&&!inBr(k)) cids.push(k);
     for(let k=cids.length-1;k>0;k--){ const j=(rng()*(k+1))|0; const tm=cids[k]; cids[k]=cids[j]; cids[j]=tm; }
     for(let n=0;n<ncr&&n<cids.length;n++){ const ci=cids[n], p=path[ci]; usedHaz.add(ci); crusherList.push([p.x,p.z,+ptopOf(p).toFixed(2),+(1.5+t*0.8).toFixed(2)]); } }
   if(world>=3){ const nP=1+Math.round((world-2)*0.4+t*3.5);
-    const ids=[]; for(let k=1;k<mechMax;k++) if(!moverCells.has(k)&&!convCells.has(k)&&!usedHaz.has(k)&&!inBr(k)) ids.push(k);
+    const ids=[]; for(let k=1;k<mechMax;k++) if(!moverCells.has(k)&&!convCells.has(k)&&!blinkCells.has(k)&&!usedHaz.has(k)&&!inBr(k)) ids.push(k);
     for(let k=ids.length-1;k>0;k--){ const j=(rng()*(k+1))|0; const tm=ids[k]; ids[k]=ids[j]; ids[j]=tm; }
     for(let n=0;n<nP&&n<ids.length;n++){ const ci=ids[n], p=path[ci], a=path[parent[ci]], ptop=ptopOf(p);
       const axis=Math.abs(p.x-a.x)>0.1?'x':'z';
@@ -572,7 +584,7 @@ function finalizeCourse(idx, salt, o){
   const t3=Math.round(numStars*4.5+path.length*2+pendulums.length*2.5), t2=Math.round(numStars*8+path.length*3.5+pendulums.length*4.5);
   const maxR=Math.max.apply(null, path.map(p=>Math.hypot(p.x,p.z)));
   return { name:WORLD_NAMES[world]+' '+(world+1)+'-'+((idx%10)+1), world, arenaR:+(maxR+5).toFixed(1), thresholds:[t3,t2],
-    spawn:[path[0].x, 3, path[0].z], platforms, ramps, movers, spinners, pendulums, pads, lifts, conveyors, crushers:crusherList, stars, goalPos };
+    spawn:[path[0].x, 3, path[0].z], platforms, ramps, movers, spinners, pendulums, pads, lifts, conveyors, crushers:crusherList, blinks:blinkList, stars, goalPos };
 }
 function courseRng(idx,salt){ return mulberry32((((idx+1)*2654435761) ^ ((salt||0)*40503))>>>0); }
 // —— 蛇形：来回逐行爬升（原始布局，作为基准/兜底）——
@@ -655,6 +667,7 @@ function validateCourse(L){
   (L.platforms||[]).forEach(p=>addBox(p[0],p[1],p[2],p[3]));
   (L.ramps||[]).forEach(r=>addBox(r[0],r[1],r[2],r[3]));
   (L.conveyors||[]).forEach(c=>addBox(c[0],c[1],c[2],c[3]));
+  (L.blinks||[]).forEach(b=>addBox(b[0],b[1],b[2],b[3]));
   (L.lifts||[]).forEach(l=>addBox(l[0],l[1],l[2],l[3]));
   (L.movers||[]).forEach(m=>{ const ex=m[6]==='x'?m[7]:0, ez=m[6]==='z'?m[7]:0; addBox(m[0],m[1],m[2]+ex*2,m[3]+ez*2); });
   for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){ const a=boxes[i],b=boxes[j];
@@ -685,7 +698,7 @@ function clearLevel(){ goalMesh=null; goalMats=null; if(ghostMesh){ scene.remove
   for(let i=levelGroup.children.length-1;i>=0;i--){ const o=levelGroup.children[i];
     o.traverse(c=>{ if(c.isMesh){ c.geometry.dispose(); (Array.isArray(c.material)?c.material:[c.material]).forEach(m=>m.dispose()); } });
     levelGroup.remove(o); }
-  movers.length=0; spinners.length=0; pads.length=0; stars.length=0; lifts.length=0; pendulums.length=0; crushers.length=0; solids.length=baseCount;
+  movers.length=0; spinners.length=0; pads.length=0; stars.length=0; lifts.length=0; pendulums.length=0; crushers.length=0; blinks.length=0; solids.length=baseCount;
 }
 function addGoal(x,z,y){ const g=new THREE.Group(); g.position.set(x,y||0,z);
   const baseMat=new THREE.MeshStandardMaterial({color:0x9aa6b2,emissive:0x3a434e,emissiveIntensity:0.22,roughness:0.5});   // 锁定=灰暗（清楚表示"还没开"，不像可冲的门）
@@ -707,6 +720,7 @@ function buildLevelData(L){ clearLevel();
   (L.lifts||[]).forEach(l=>addLift(l[0],l[1],l[2],l[3],l[4],l[5],l[6],l[7]));
   (L.conveyors||[]).forEach(c=>addConveyor(c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8]));
   (L.crushers||[]).forEach(c=>addCrusher(c[0],c[1],c[2],c[3]));
+  (L.blinks||[]).forEach(b=>addBlink(b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]));
   (L.movers||[]).forEach(m=>addMover(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8]));
   (L.spinners||[]).forEach(s=>addSpinner(s[0],s[1],s[2],s[3],s[4]));
   (L.pendulums||[]).forEach(p=>addPendulum(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]));
@@ -1046,6 +1060,9 @@ function tick(dt){
     const dy=top-lf.s.top; lf.s.top=top; lf.mesh.position.y=top-0.25;
     if(groundSolid===lf.s){ player.position.y+=dy; }
   }
+  // —— 闪现平台：按节奏实心/虚化（虚化时无碰撞，留淡影预示位置）——
+  for(const bl of blinks){ const w=Math.sin(clock*bl.period+bl.ph), on=w>-0.4;
+    bl.s.blinkOff=!on; bl.mesh.material.opacity = on ? (w<-0.1?0.5:1) : 0.12; }
   if(state==='menu') camYaw += dt*0.12;                 // 标题页：缓慢环绕展示场景
   if(state==='play' && stun<=0){
     _f.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); _r.set(-_f.z,0,_f.x); _w.set(0,0,0);
@@ -1064,6 +1081,7 @@ function tick(dt){
   player.position.x+=vel.x*dt; player.position.z+=vel.z*dt;
   const feet=player.position.y;
   for(const s of solids){
+    if(s.blinkOff) continue;                         // 闪现平台虚化时无碰撞
     if(s.ramp) continue;                            // 斜坡：可顺着走上去，不当墙阻挡
     if(s.top<=feet+STEP) continue;                 // 够矮可踩上/跨过，不当墙
     if(s.box){
@@ -1087,6 +1105,7 @@ function tick(dt){
   vy-=G*dt; player.position.y+=vy*dt;
   let support=(Math.hypot(player.position.x,player.position.z)<curIslandR)?0:-999, supSolid=null;   // 岛面（按关变大小）
   for(const s of solids){
+    if(s.blinkOff) continue;                         // 闪现平台虚化时无支撑（会穿落）
     if(s.ramp){   // 斜坡：用当前位置处的坡面高度当支撑（容差放宽到 0.55，斜面上下行走顺滑、不会从下方被顶上去）
       const inFp = player.position.x>=s.minX-PR && player.position.x<=s.maxX+PR && player.position.z>=s.minZ-PR && player.position.z<=s.maxZ+PR;
       const stop = rampTop(s,player.position.x,player.position.z);
