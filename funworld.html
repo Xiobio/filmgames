@@ -533,7 +533,7 @@ function validateLevel(L){
 // ============ 赛道生成器：4 种布局（蛇形/螺旋/分叉/长冲刺）逐关变长变难；斜坡连通保证可达；自检防穿模 ============
 // 共用收尾：从有序 path[] + parent[] 连通关系，铺平台/斜坡/机关/星/终点；assert 守住"相邻格只差一个轴+斜坡正宽度"
 function finalizeCourse(idx, salt, o){
-  const {rng,world,t,col,psize,path,parent,branchSet,trunkLastIdx}=o;
+  const {rng,world,t,col,psize,path,parent,branchSet,trunkLastIdx,noRamp}=o;
   for(let i=0;i<path.length;i++){ const pj=parent[i]; if(pj==null) continue; const a=path[pj], b=path[i];
     const dx=Math.abs(b.x-a.x), dz=Math.abs(b.z-a.z);
     if((dx>0.1)===(dz>0.1)) return null;                                // 必须恰好差一个轴（否则会出斜向坏斜坡）
@@ -561,7 +561,7 @@ function finalizeCourse(idx, salt, o){
     } else if(blinkCells.has(i)){ blinkList.push([p.x,p.z,psize,psize,ptop,0xffd36e,+(1.1+t*0.5).toFixed(2),+((i*1.7)%6.283).toFixed(2)]);
     } else platforms.push([p.x,p.z,psize,psize,ptop,col()]);
     stars.push([p.x,+(ptop+1.0).toFixed(2),p.z]);
-    const pj=parent[i]; if(pj!=null){ const a=path[pj], aTop=ptopOf(a), bTop=ptop;
+    const pj=parent[i]; if(pj!=null && !noRamp){ const a=path[pj], aTop=ptopOf(a), bTop=ptop;   // noRamp(跳岛)：格间留可跳空隙，不铺斜坡
       if(Math.abs(p.x-a.x)>0.1){ const lo=Math.min(a.x,p.x), hi=Math.max(a.x,p.x), x0=lo+psize/2, x1=hi-psize/2;
         ramps.push([+((x0+x1)/2).toFixed(2), a.z, +(x1-x0).toFixed(2), psize, +((a.x<p.x?aTop:bTop)).toFixed(2), +((a.x<p.x?bTop:aTop)).toFixed(2), 'x', col()]);
       } else { const lo=Math.min(a.z,p.z), hi=Math.max(a.z,p.z), z0=lo+psize/2, z1=hi-psize/2;
@@ -644,21 +644,33 @@ function genSpiral(idx, salt){
   path[0].top=0; const parent=path.map((_,i)=>i>0?i-1:null);
   return finalizeCourse(idx,salt,{rng,world,t,col,psize,path,parent,branchSet:null,trunkLastIdx:null});
 }
+// —— 跳岛：分离平台 + 可跳空隙（精准跳跃手感，不走斜坡；间隙/升高都在跳跃预算内，配 coyote/缓冲才公平）——
+function genIslands(idx, salt){
+  const rng=courseRng(idx,salt), world=Math.min(9,Math.floor(idx/10)), t=idx/99, pal=PALETTES[world], col=()=>pal[(rng()*pal.length)|0];
+  const cols=(rng()<0.5)?3:2, cell=6.2, psize=+Math.max(3.2,Math.min(3.8,3.9-t*0.4+rng()*0.2)).toFixed(2);   // 间隙=cell-psize≈2.4-3.0m,稳跳
+  let rows=3+Math.round(t*4+rng()*1.2); while((rows-1)/2*cell+psize/2>23 && rows>3) rows--;
+  const cellsN=cols*rows, hStep=Math.max(0.5,Math.min(1.2,(3+t*8)/(cellsN-1)));   // 跳跃升高≤1.2m
+  const path=[]; let h=0;
+  for(let r=0;r<rows;r++){ const cs=[]; for(let c=0;c<cols;c++) cs.push(c); if(r%2===1) cs.reverse();
+    for(const c of cs){ path.push({x:+((c-(cols-1)/2)*cell).toFixed(2), z:+((r-(rows-1)/2)*cell).toFixed(2), top:h}); h+=hStep; } }
+  path[0].top=0; const parent=path.map((_,i)=>i>0?i-1:null);
+  return finalizeCourse(idx,salt,{rng,world,t,col,psize,path,parent,branchSet:null,trunkLastIdx:null,noRamp:true});
+}
 // —— 调度：每关用哪种布局（独立 rng，不扰动各 builder 的随机流）——
 function pickTopology(idx, salt){
   const world=Math.min(9,Math.floor(idx/10)), rail=idx%10;
-  const base=['snake','snake','sprint','spiral','snake','branch','snake','spiral','branch','snake'];
+  const base=['snake','islands','sprint','spiral','snake','branch','islands','spiral','branch','snake'];
   let name=base[(rail+world)%10];
-  if(world===0) name='snake'; else if(world===1 && (name==='spiral'||name==='branch')) name='sprint';   // 前期循序渐进
+  const early=(nm)=> world===0 ? 'snake' : (world===1 && (nm==='spiral'||nm==='branch'||nm==='islands')) ? 'sprint' : nm;
+  name=early(name);
   if(salt){ if(salt>=20) return 'snake';                                                                 // 高重试次数→保险用蛇形
     const r=mulberry32((((idx+131)*2246822519) ^ ((salt*2654435761)>>>0))>>>0)();
-    if(r<0.5){ const order=['snake','spiral','branch','sprint']; name=order[(order.indexOf(name)+1)&3];
-      if(world===0) name='snake'; else if(world===1 && (name==='spiral'||name==='branch')) name='sprint'; } }
+    if(r<0.5){ const order=['snake','spiral','branch','sprint','islands']; name=early(order[(order.indexOf(name)+1)%5]); } }
   return name;
 }
 function genCourse(idx, salt){
   const topo=pickTopology(idx, salt||0);
-  return topo==='spiral'?genSpiral(idx,salt) : topo==='branch'?genBranchMulti(idx,salt) : topo==='sprint'?genLongSprint(idx,salt) : genSnake(idx,salt);
+  return topo==='spiral'?genSpiral(idx,salt) : topo==='branch'?genBranchMulti(idx,salt) : topo==='sprint'?genLongSprint(idx,salt) : topo==='islands'?genIslands(idx,salt) : genSnake(idx,salt);
 }
 // 自检：所有矩形足迹无重叠（贴边相接不算）；星数足够（可达性由斜坡连通+蛇形顺序天然保证）
 function validateCourse(L){
@@ -797,8 +809,8 @@ function toMenu(){ resetRun(); state='menu'; running=false; refreshStartStats();
 function todayNum(){ const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
 function prevDayNum(dn){ const d=new Date(Math.floor(dn/10000),(Math.floor(dn/100)%100)-1,dn%100); d.setDate(d.getDate()-1); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
 function genDaily(){ const dn=todayNum(); dailyDate=dn; const di=20+(dn%60);
-  const tp=['snake','sprint','branch','spiral','snake','sprint','branch'][dn%7];
-  const build=(s)=> tp==='spiral'?genSpiral(di,s) : tp==='branch'?genBranchMulti(di,s) : tp==='sprint'?genLongSprint(di,s) : genSnake(di,s);
+  const tp=['snake','sprint','branch','spiral','islands','sprint','spiral','branch'][dn%8];
+  const build=(s)=> tp==='spiral'?genSpiral(di,s) : tp==='branch'?genBranchMulti(di,s) : tp==='sprint'?genLongSprint(di,s) : tp==='islands'?genIslands(di,s) : genSnake(di,s);
   let L=build(dn),tr=0; while((!L||!validateCourse(L))&&tr<25){ tr++; L=build(dn+tr*97); } if(!L||!validateCourse(L)) L=genSnake(di,0);
   return Object.assign({},L,{name:'每日挑战'}); }
 function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
@@ -1255,7 +1267,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, genIslands, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;} };
 // 深链分享：好友点开 #lv=N&t=TIME 直接进入该关、把对方成绩当目标（闭合"分享→玩→再分享"病毒环）
 function applyDeepLink(){ try{ const h=location.hash||'';
   if(/daily/i.test(h)){ startDaily(); return true; }
