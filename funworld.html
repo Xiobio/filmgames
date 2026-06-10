@@ -95,6 +95,21 @@ html,body{height:100%;overflow:hidden;background:#bfe6ff;font-family:"Baloo 2","
 #mute:active{transform:translateY(2px);box-shadow:0 2px 0 #57b3ee}
 #langBtn{position:fixed;left:18px;top:108px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #8ad0ff;background:#fff;cursor:pointer;font-size:14px;font-weight:800;color:#1d8fd6;box-shadow:0 4px 0 #57b3ee;display:grid;place-items:center;padding:0;line-height:1}
 #langBtn:active{transform:translateY(2px);box-shadow:0 2px 0 #57b3ee}
+#achBtn{position:fixed;left:18px;top:152px;z-index:10;width:38px;height:38px;border-radius:50%;border:3px solid #ffd34d;background:#fff;cursor:pointer;font-size:18px;box-shadow:0 4px 0 #f0b400;display:grid;place-items:center;padding:0;line-height:1}
+#achBtn:active{transform:translateY(2px);box-shadow:0 2px 0 #f0b400}
+#achPanel{position:fixed;inset:0;z-index:11;display:none;background:rgba(180,210,235,.55);overflow:auto;padding:20px}
+#achPanel.show{display:block}
+#achPanel .ap-card{max-width:560px;margin:30px auto;background:#fff;border-radius:22px;padding:18px 18px 22px;box-shadow:0 16px 50px rgba(0,0,0,.2)}
+#achPanel h2{text-align:center;color:#6b5b7a;margin:4px 0 4px;font-size:21px;font-weight:800}
+#achPanel .ap-sub{text-align:center;color:#9a8aae;font-size:13px;margin-bottom:14px;font-weight:700}
+#achPanel .ap-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#achPanel .ap-item{display:flex;gap:10px;align-items:center;background:#f4f1f8;border-radius:14px;padding:10px 12px}
+#achPanel .ap-item.locked{opacity:.55;filter:grayscale(.75)}
+#achPanel .ap-ic{font-size:25px;width:32px;text-align:center;flex:none}
+#achPanel .ap-name{font-weight:800;color:#5a4a72;font-size:13.5px}
+#achPanel .ap-desc{font-size:11.5px;color:#9a8aae}
+#achPanel .ap-close{display:block;margin:18px auto 0;font-family:inherit;font-weight:800;font-size:15px;color:#1d8fd6;background:#fff;border:3px solid #8ad0ff;border-radius:22px;padding:9px 28px;cursor:pointer;box-shadow:0 5px 0 #57b3ee}
+@media(max-width:480px){#achPanel .ap-grid{grid-template-columns:1fr}}
 #win button.ghost{background:#fff;color:#ff6f91;border:3px solid #ffd0dd;box-shadow:0 5px 0 #ffd0dd;font-size:17px;padding:12px 22px}
 #win button.ghost:active{transform:translateY(2px);box-shadow:0 3px 0 #ffd0dd}
 /* 标题页 */
@@ -169,12 +184,14 @@ body.playing #obj{opacity:1}
 <div id="obj"></div>
 <button id="mute" title="音效开关">🔊</button>
 <button id="langBtn" title="语言 / Language">EN</button>
+<button id="achBtn" title="成就 / Achievements">🏅</button>
 <div id="hint"><span><b>WASD</b> 移动</span><span><b>空格</b> 跳</span><span><b>Shift</b> 冲刺</span><span>右键拖拽转视角</span><span>收齐全部 <b>⭐</b> 冲最快时间！</span></div>
 <div id="mob"><div id="joy"><div id="jt"></div></div><div id="jbtn">跳</div></div>
 <div id="load">豆豆乐园 载入中…</div>
 <div id="win"><div class="card"><div class="banner" id="wbanner">🎉 通关！</div><div class="lvname" id="wlv"></div><div class="stars" id="ws"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div><div class="time"><span id="wt">0.0</span>s</div><div class="bonus" id="wbonus"></div><div class="best" id="wb"></div><div class="btns"><button id="next">下一关 →</button><button id="again" class="ghost">再玩</button><button id="share" class="ghost">分享 📤</button><button id="tomenu" class="ghost">标题</button></div></div></div>
 <div id="flash"></div>
 <div id="map"><div class="map-top"><button id="mback">◀ 标题</button><span class="prog">⭐<b id="mTot">0</b> · 已通 <b id="mDone">0</b>/100</span></div><div id="mapWorlds"></div></div>
+<div id="achPanel"></div>
 <div id="start" class="show"><div class="panel"><div class="logo">豆豆冲冲冲</div><div class="sub">BEAN&nbsp;DASH · 卡通 3D 闯关跑酷</div><button id="play">▶ 开始游戏</button><button id="tomap">🗺️ 选关地图</button><button id="todaily">📅 每日挑战</button><div class="stats" id="startStats"></div><div class="skins" id="skinRow"></div><div class="ctl"><b>WASD</b>/摇杆 移动 · <b>空格</b> 跳 · <b>Shift</b> 冲刺 · 收齐 ⭐ 冲最快时间</div></div></div>
 
 <script type="importmap">
@@ -821,13 +838,54 @@ function recordDaily(secs){ const dn=dailyDate, key='bean_daily_'+dn;
 function startDaily(){ A.init(); dailyMode=true; buildLevelData(genDaily()); resetRun(); state='play'; running=true;
   startEl.classList.remove('show'); winEl.classList.remove('show'); const m=document.getElementById('map'); if(m)m.classList.remove('show'); document.body.classList.add('playing');
   const o=document.getElementById('obj'); if(o){ o.classList.remove('warn'); o.textContent=t('objDaily'); } }
+// ============ 成就系统（收集+里程碑，强化"再玩一局"与回访）============
+const ACHIEVEMENTS=[
+  {id:'first',    ic:'🎉', zh:['初出茅庐','通关第 1 关'],      en:['First Steps','Clear your 1st level'], chk:s=>s.cleared>=1},
+  {id:'clear10',  ic:'🏃', zh:['渐入佳境','通关 10 关'],       en:['Getting Good','Clear 10 levels'],     chk:s=>s.cleared>=10},
+  {id:'clear50',  ic:'🔥', zh:['半程豆神','通关 50 关'],       en:['Halfway Hero','Clear 50 levels'],     chk:s=>s.cleared>=50},
+  {id:'clearAll', ic:'👑', zh:['通关大师','全通 100 关'],      en:['Grand Master','Clear all 100'],       chk:s=>s.cleared>=100},
+  {id:'stars50',  ic:'⭐', zh:['星光初耀','累计 50 ⭐'],        en:['Star Light','50 total ⭐'],            chk:s=>s.stars>=50},
+  {id:'stars150', ic:'🌟', zh:['星河璀璨','累计 150 ⭐'],       en:['Star Bright','150 total ⭐'],          chk:s=>s.stars>=150},
+  {id:'perfect',  ic:'💯', zh:['完美一击','首次三星通关'],     en:['Perfect!','Get a 3-star clear'],      chk:s=>s.threeStars>=1},
+  {id:'perfect20',ic:'🏆', zh:['三星收割','20 关三星'],         en:['Triple Threat','3-star 20 levels'],   chk:s=>s.threeStars>=20},
+  {id:'combo5',   ic:'⚡', zh:['连击新手','连击 x5'],           en:['Combo Starter','Hit a x5 combo'],     chk:s=>s.maxCombo>=5},
+  {id:'combo10',  ic:'💥', zh:['连击大师','连击 x10'],          en:['Combo Master','Hit a x10 combo'],     chk:s=>s.maxCombo>=10},
+  {id:'streak3',  ic:'📅', zh:['每日打卡','每日连胜 3 天'],     en:['Daily Habit','3-day streak'],         chk:s=>s.streak>=3},
+  {id:'streak7',  ic:'🗓️', zh:['坚持一周','每日连胜 7 天'],     en:['Weekly Warrior','7-day streak'],      chk:s=>s.streak>=7},
+  {id:'allskins', ic:'🎨', zh:['时尚豆豆','集齐全部皮肤'],     en:['Fashionista','Unlock all skins'],     chk:s=>s.stars>=180},
+  {id:'speed',    ic:'🚀', zh:['极速豆豆','12 秒内通关一关'],   en:['Speed Demon','Clear a level under 12s'],chk:s=>s.bestTime>0&&s.bestTime<12},
+  {id:'finale',   ic:'🎆', zh:['抵达终焉','打到第 10 世界'],    en:['The Finale','Reach World 10'],        chk:s=>s.topWorld>=9},
+];
+function getAchStats(){ let cleared=0, threeStars=0, topWorld=0;
+  for(let i=0;i<LEVELS.length;i++){ if(levelBest(i)!==null){ cleared++; const w=Math.floor(i/10); if(w>topWorld)topWorld=w; } if(levelStars(i)>=3) threeStars++; }
+  return { cleared, stars:totalStarsEarned(), threeStars, topWorld, bestTime:parseFloat(LS.getItem('bean_best'))||0,
+    maxCombo:+(LS.getItem('bean_maxcombo')||0), streak:+(LS.getItem('bean_daily_streak')||0) }; }
+function unlockedAch(){ try{ return JSON.parse(LS.getItem('bean_ach')||'[]'); }catch(e){ return []; } }
+function checkAchievements(){ const s=getAchStats(), un=new Set(unlockedAch()), fresh=[];
+  for(const a of ACHIEVEMENTS){ if(!un.has(a.id) && a.chk(s)){ un.add(a.id); fresh.push(a); } }
+  if(fresh.length){ try{ LS.setItem('bean_ach', JSON.stringify([...un])); }catch(e){}
+    fresh.forEach((a,i)=> setTimeout(()=>achToast(a), 400+i*700)); }
+  return fresh; }
+function achToast(a){ const nm=(lang==='zh'?a.zh:a.en)[0]; const d=document.createElement('div');
+  d.innerHTML=(lang==='zh'?'🏅 成就解锁':'🏅 Achievement')+'<br><b>'+a.ic+' '+nm+'</b>';
+  d.style.cssText='position:fixed;top:128px;right:18px;z-index:7;text-align:center;background:linear-gradient(160deg,rgba(70,50,95,.95),rgba(45,32,60,.95));color:#fff;font-weight:700;font-size:14px;line-height:1.6;padding:11px 20px;border-radius:16px;box-shadow:0 8px 22px rgba(0,0,0,.3);transition:opacity .6s';
+  document.body.appendChild(d); try{A.ding&&A.ding(1.4);}catch(e){} setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),700); }, 3600); }
+function openAchievements(){ try{A.init();}catch(e){}
+  const un=new Set(unlockedAch()), got=un.size;
+  const items=ACHIEVEMENTS.map(a=>{ const u=un.has(a.id), L=lang==='zh'?a.zh:a.en;
+    return `<div class="ap-item${u?'':' locked'}"><div class="ap-ic">${u?a.ic:'🔒'}</div><div><div class="ap-name">${L[0]}</div><div class="ap-desc">${L[1]}</div></div></div>`; }).join('');
+  const panel=document.getElementById('achPanel');
+  panel.innerHTML='<div class="ap-card"><h2>'+(lang==='zh'?'🏅 成就':'🏅 Achievements')+'</h2><div class="ap-sub">'+got+' / '+ACHIEVEMENTS.length+'</div><div class="ap-grid">'+items+'</div><button class="ap-close">'+(lang==='zh'?'关闭':'Close')+'</button></div>';
+  panel.querySelector('.ap-close').addEventListener('click',()=>panel.classList.remove('show'));
+  panel.classList.add('show'); }
+document.getElementById('achBtn').addEventListener('click', openAchievements);
 let lastRating=3;   // 最近一次通关星级（用于分享文案）
 function showWin(){ running=false; state='results'; shake=0.6;
   const raw=timeMs/1000, bonus=bonusMs/1000, secs=Math.max(0, raw-bonus); wtEl.textContent=secs.toFixed(1);
   wbonusEl.textContent = bonus>0 ? t('bonus',raw.toFixed(1),bonus.toFixed(1)) : t('timeUsed',raw.toFixed(1));
   const wbn=document.getElementById('wbanner'); if(wbn) wbn.textContent=t('winClear');
   const rating = secs<=STAR_T[0]?3 : secs<=STAR_T[1]?2 : 1; lastRating=rating;
-  if(dailyMode){ const r=recordDaily(secs); wbEl.innerHTML=(r.rec?t('dRec'):t('dBest',r.best.toFixed(1)))+t('streakSuf',r.streak); document.getElementById('next').style.display='none'; celebrate(rating,secs,r.rec); return; }
+  if(dailyMode){ const r=recordDaily(secs); wbEl.innerHTML=(r.rec?t('dRec'):t('dBest',r.best.toFixed(1)))+t('streakSuf',r.streak); document.getElementById('next').style.display='none'; celebrate(rating,secs,r.rec); checkAchievements(); return; }
   // 逐关进度（与全局最佳/皮肤养成并存）
   const prevLvStars=+(LS.getItem('bean_lv'+levelIdx+'_stars')||0);
   try{ const bk='bean_lv'+levelIdx+'_best', sk='bean_lv'+levelIdx+'_stars';
@@ -839,7 +897,7 @@ function showWin(){ running=false; state='results'; shake=0.6;
   const tot=totalStarsEarned(), prevTot=tot-Math.max(0,rating-prevLvStars);   // 真实累计星(Σ每关最高星，不随重玩膨胀)
   const newSkins=SKINS.filter(s=> s.need>prevTot && s.need<=tot).map(s=>skinName(s));
   wbEl.innerHTML = (rec?t('newRec'):t('best',best.toFixed(1))) + (newSkins.length?t('unlock',newSkins.join(lang==='zh'?'、':', ')):'');
-  celebrate(rating, secs, rec); }
+  celebrate(rating, secs, rec); checkAchievements(); }
 const restart = startGame;                                  // 兼容旧调试钩子
 document.getElementById('play').addEventListener('click', ()=>{ buildLevel(curLevel()); startGame(); });
 document.getElementById('again').addEventListener('click', startGame);
@@ -1239,6 +1297,7 @@ function tick(dt){
     if(state==='play' && s.m.position.distanceTo(_mp)<1.0){
       s.alive=false; levelGroup.remove(s.m); popStar(s.m.position.x,s.m.position.y,s.m.position.z); score++; scEl.textContent=score+'/'+total;
       combo = (timeMs-lastCollectMs<=COMBO_WINDOW) ? combo+1 : 1; lastCollectMs=timeMs;
+      if(combo>+(LS.getItem('bean_maxcombo')||0)) try{ LS.setItem('bean_maxcombo',String(combo)); }catch(e){}
       if(combo>=2){ const bn=(Math.min(combo,COMBO_MAX)-1)*COMBO_STEP; bonusMs+=bn; popCombo(combo,bn,s.m.position);
         comboEl.textContent=t('combo',combo); comboEl.classList.remove('on'); void comboEl.offsetWidth; comboEl.classList.add('on'); }
       A.collect(score);
@@ -1267,7 +1326,7 @@ let last=performance.now();
 function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.05)dt=0.05; tick(dt); composer.render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 setTimeout(()=>document.getElementById('load').classList.add('gone'), 400);
-window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, genIslands, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;} };
+window.__fw = { THREE, scene, camera, player, keys, tick, jump, restart, startGame, toMenu, resetRun, A, movers, spinners, SKINS, applySkin, LEVELS, buildLevel, nextLevel, levelUnlocked, levelBest, levelStars, genLevel, validateLevel, genCourse, validateCourse, pickTopology, genSnake, genSpiral, genBranchMulti, genLongSprint, genIslands, openMap, buildMap, curLevel, startDaily, genDaily, todayNum, get dailyMode(){return dailyMode;}, get levelIdx(){return levelIdx;}, get total(){return total;}, get score(){return score;}, get grounded(){return grounded;}, get running(){return running;}, get timeMs(){return timeMs;}, get groundSolid(){return groundSolid;}, get state(){return state;}, get stun(){return stun;}, get skinIdx(){return skinIdx;}, get combo(){return combo;}, get bonusMs(){return bonusMs;}, shareText, get muted(){return muted;}, get goalOpen(){return goalOpen;}, get goalPos(){return curGoal;}, get curIslandR(){return curIslandR;}, get musicState(){return musicGain?{on:!!musicTimer,gain:musicGain.gain.value}:{on:false,gain:null};}, get lowEnd(){return lowEnd;}, get pixelRatio(){return renderer.getPixelRatio();}, get shadowSize(){return sun.shadow.mapSize.x;}, get ghostRecLen(){return ghostRec.length;}, get hasGhost(){return !!ghostMesh;}, get ghostPos(){return ghostMesh?[+ghostMesh.position.x.toFixed(1),+ghostMesh.position.z.toFixed(1)]:null;}, get checkpoint(){return curCheckpoint;}, get spawn(){return curSpawn;}, get vy(){return vy;}, canJump, get lastGroundedMs(){return lastGroundedMs;}, get camYaw(){return camYaw;}, get camPitch(){return camPitch;}, get shake(){return shake;}, checkAchievements, openAchievements, unlockedAch, getAchStats, ACHIEVEMENTS };
 // 深链分享：好友点开 #lv=N&t=TIME 直接进入该关、把对方成绩当目标（闭合"分享→玩→再分享"病毒环）
 function applyDeepLink(){ try{ const h=location.hash||'';
   if(/daily/i.test(h)){ startDaily(); return true; }
